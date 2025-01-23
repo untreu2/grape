@@ -21,7 +21,8 @@ class _SendScreenState extends State<SendScreen> {
   int? _requestedAmount;
   String? _memo;
 
-  
+  bool _isLoading = false;
+
   final FocusNode _invoiceFocusNode = FocusNode();
 
   @override
@@ -68,33 +69,51 @@ class _SendScreenState extends State<SendScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
+      _isLoading = true;
     });
 
     final walletProvider = Provider.of<WalletProvider>(context, listen: false);
 
-    if (_paymentMethod == 'invoice') {
-      final paymentRequest = _invoiceController.text.trim();
-      await walletProvider.payInvoice(paymentRequest);
-    } else {
-      final lnurl = _lnurlController.text.trim();
-      final amount = int.tryParse(_amountController.text.trim()) ?? 0;
-      if (amount <= 0) {
-        setState(() {
-        });
-        return;
+    try {
+      if (_paymentMethod == 'invoice') {
+        final paymentRequest = _invoiceController.text.trim();
+        await walletProvider.payInvoice(paymentRequest);
+      } else {
+        final lnurl = _lnurlController.text.trim();
+        final amount = int.tryParse(_amountController.text.trim()) ?? 0;
+        if (amount <= 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Please enter a valid amount."),
+              backgroundColor: AppColors.sendError,
+            ),
+          );
+          setState(() {
+            _isLoading = false;
+          });
+          return;
+        }
+        await walletProvider.payLnurl(lnurl, amount);
       }
-      await walletProvider.payLnurl(lnurl, amount);
-    }
 
-    if (walletProvider.status != null) {
+      if (walletProvider.status != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(walletProvider.status!),
+            backgroundColor: walletProvider.status == "SUCCESS" ? AppColors.sendSuccess : AppColors.sendError,
+          ),
+        );
+      }
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(walletProvider.status!),
-          backgroundColor: walletProvider.status == "SUCCESS" ? AppColors.sendSuccess : AppColors.sendError,
+          content: Text("Error: $e"),
+          backgroundColor: AppColors.sendError,
         ),
       );
-    } else {
+    } finally {
       setState(() {
+        _isLoading = false;
       });
     }
   }
@@ -110,35 +129,35 @@ class _SendScreenState extends State<SendScreen> {
             child: Column(
               children: [
                 if (_requestedAmount != null) ...[
-Padding(
-  padding: const EdgeInsets.only(bottom: 10.0),
-  child: AutoSizeText(
-    "${_requestedAmount} SATS",
-    style: TextStyle(
-      fontSize: 40,
-      fontWeight: FontWeight.bold,
-      color: AppColors.sendAmountText,
-    ),
-    maxLines: 1,
-    minFontSize: 10,
-    overflow: TextOverflow.ellipsis,
-  ),
-),
-if (_memo != null && _memo!.isNotEmpty)
-  Padding(
-    padding: const EdgeInsets.only(bottom: 20.0),
-    child: AutoSizeText(
-      "$_memo",
-      style: TextStyle(
-        fontSize: 24,
-        fontStyle: FontStyle.italic,
-        color: AppColors.secondaryText,
-      ),
-      maxLines: 1,
-      minFontSize: 10,
-      overflow: TextOverflow.ellipsis,
-    ),
-  ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10.0),
+                    child: AutoSizeText(
+                      "${_requestedAmount} SATS",
+                      style: TextStyle(
+                        fontSize: 40,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.sendAmountText,
+                      ),
+                      maxLines: 1,
+                      minFontSize: 10,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (_memo != null && _memo!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 20.0),
+                      child: AutoSizeText(
+                        "$_memo",
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontStyle: FontStyle.italic,
+                          color: AppColors.secondaryText,
+                        ),
+                        maxLines: 1,
+                        minFontSize: 10,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                 ],
                 Form(
                   key: _formKey,
@@ -249,8 +268,20 @@ if (_memo != null && _memo!.isNotEmpty)
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
-                          onPressed: _sendPayment,
-                          label: const Text('Pay'),
+                          onPressed: _isLoading ? null : _sendPayment,
+                          icon: _isLoading
+                              ? SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.buttonText),
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Icon(Icons.currency_bitcoin, color: AppColors.secondaryText),
+                          label: _isLoading
+                              ? Text('Paying...')
+                              : const Text('Pay'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.buttonBackground,
                             foregroundColor: AppColors.buttonText,
