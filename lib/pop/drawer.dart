@@ -20,7 +20,7 @@ class AppDrawer extends StatelessWidget {
         children: [
           DrawerHeader(
             decoration: BoxDecoration(
-              color: AppColors.primaryText, 
+              color: AppColors.primaryText,
             ),
             child: Align(
               alignment: Alignment.bottomLeft,
@@ -33,6 +33,16 @@ class AppDrawer extends StatelessWidget {
                 ),
               ),
             ),
+          ),
+          ListTile(
+            leading: Icon(Icons.history, color: AppColors.secondaryText),
+            title: Text(
+              'History',
+              style: TextStyle(color: AppColors.secondaryText),
+            ),
+            onTap: () {
+              Navigator.pushNamed(context, '/history');
+            },
           ),
           ListTile(
             leading: Icon(Icons.exit_to_app, color: AppColors.secondaryText),

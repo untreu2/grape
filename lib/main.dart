@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'screens/history_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'wallet_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
-import '../utils/colors.dart'; 
+import 'utils/colors.dart';
 
 void main() {
   runApp(
@@ -24,15 +25,15 @@ class MyApp extends StatelessWidget {
       title: 'Lightning Wallet',
       theme: ThemeData(
         progressIndicatorTheme: const ProgressIndicatorThemeData(
-          color: AppColors.primaryText, 
+          color: AppColors.primaryText,
         ),
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: AppColors.background, 
-        primaryColor: AppColors.primaryText, 
-        hintColor: AppColors.secondaryText, 
+        scaffoldBackgroundColor: AppColors.background,
+        primaryColor: AppColors.primaryText,
+        hintColor: AppColors.secondaryText,
         textSelectionTheme: const TextSelectionThemeData(
-          cursorColor: AppColors.primaryText,  
-          selectionColor: Color(0x40D7CCC8), 
+          cursorColor: AppColors.primaryText,
+          selectionColor: Color(0x40D7CCC8),
           selectionHandleColor: AppColors.primaryText,
         ),
         textTheme: GoogleFonts.montserratTextTheme(
@@ -46,7 +47,7 @@ class MyApp extends StatelessWidget {
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: const Color.fromARGB(255, 67, 56, 46), 
+          fillColor: const Color.fromARGB(255, 67, 56, 46),
           border: const OutlineInputBorder(
             borderRadius: BorderRadius.all(Radius.circular(8.0)),
             borderSide: BorderSide.none,
@@ -89,12 +90,11 @@ class MyApp extends StatelessWidget {
       routes: {
         '/login': (context) => const LoginScreen(),
         '/home': (context) => const HomeScreen(),
+        '/history': (context) => const HistoryScreen(),
       },
     );
   }
 }
-
-
 
 class InitialScreen extends StatefulWidget {
   const InitialScreen({Key? key}) : super(key: key);

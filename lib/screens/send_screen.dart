@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../wallet_provider.dart';
-import '../utils/lnparser.dart'; 
-import '../utils/colors.dart'; 
+import '../utils/lnparser.dart';
+import '../utils/colors.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 
 class SendScreen extends StatefulWidget {
@@ -20,15 +20,14 @@ class _SendScreenState extends State<SendScreen> {
   String _paymentMethod = 'invoice';
   int? _requestedAmount;
   String? _memo;
-
   bool _isLoading = false;
 
   final FocusNode _invoiceFocusNode = FocusNode();
+  final FocusNode _lnurlFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    
     WidgetsBinding.instance.addPostFrameCallback((_) {
       FocusScope.of(context).requestFocus(_invoiceFocusNode);
     });
@@ -40,10 +39,10 @@ class _SendScreenState extends State<SendScreen> {
     _lnurlController.dispose();
     _amountController.dispose();
     _invoiceFocusNode.dispose();
+    _lnurlFocusNode.dispose();
     super.dispose();
   }
 
-  
   void _fetchInvoiceDetails() {
     final invoice = _invoiceController.text.trim();
     if (invoice.isEmpty) {
@@ -54,10 +53,8 @@ class _SendScreenState extends State<SendScreen> {
       });
       return;
     }
-
     final parsedAmount = LightningInvoiceParser.getSatoshiAmount(invoice);
     final parsedMemo = LightningInvoiceParser.getMemo(invoice);
-
     setState(() {
       _requestedAmount = parsedAmount;
       _memo = parsedMemo;
@@ -67,13 +64,10 @@ class _SendScreenState extends State<SendScreen> {
 
   Future<void> _sendPayment() async {
     if (!_formKey.currentState!.validate()) return;
-
     setState(() {
       _isLoading = true;
     });
-
     final walletProvider = Provider.of<WalletProvider>(context, listen: false);
-
     try {
       if (_paymentMethod == 'invoice') {
         final paymentRequest = _invoiceController.text.trim();
@@ -95,7 +89,6 @@ class _SendScreenState extends State<SendScreen> {
         }
         await walletProvider.payLnurl(lnurl, amount);
       }
-
       if (walletProvider.status != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -179,6 +172,8 @@ class _SendScreenState extends State<SendScreen> {
                           });
                           if (index == 0) {
                             FocusScope.of(context).requestFocus(_invoiceFocusNode);
+                          } else if (index == 1) {
+                            FocusScope.of(context).requestFocus(_lnurlFocusNode);
                           }
                         },
                         borderRadius: BorderRadius.circular(30),
@@ -228,6 +223,7 @@ class _SendScreenState extends State<SendScreen> {
                               children: [
                                 TextFormField(
                                   controller: _lnurlController,
+                                  focusNode: _lnurlFocusNode,
                                   decoration: InputDecoration(
                                     labelText: 'LNURL (someone@some.com)',
                                     labelStyle: TextStyle(color: AppColors.primaryText),
@@ -279,9 +275,7 @@ class _SendScreenState extends State<SendScreen> {
                                   ),
                                 )
                               : Icon(Icons.currency_bitcoin, color: AppColors.secondaryText),
-                          label: _isLoading
-                              ? Text('Paying...')
-                              : const Text('Pay'),
+                          label: _isLoading ? Text('Paying...') : const Text('Pay'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.buttonBackground,
                             foregroundColor: AppColors.buttonText,

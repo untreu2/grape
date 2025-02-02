@@ -6,7 +6,6 @@ import 'package:http/http.dart' as http;
 
 class WalletProvider extends ChangeNotifier {
   final String _apiUrl = "https://api.blink.sv/graphql";
-
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   String? _balance;
@@ -22,9 +21,7 @@ class WalletProvider extends ChangeNotifier {
   bool get paymentSuccessful => _paymentSuccessful;
 
   Timer? _paymentTimer;
-
   String? _authToken;
-
   final Map<String, double> _exchangeRateCache = {};
   final Map<String, DateTime> _exchangeRateTimestamp = {};
   final Duration _cacheDuration = Duration(minutes: 5);
@@ -39,7 +36,6 @@ class WalletProvider extends ChangeNotifier {
   Future<void> _loadApiKey() async {
     _authToken = await _secureStorage.read(key: 'API_KEY');
     if (_authToken != null) {
-  
       await fetchBalance();
       await fetchLightningAddress();
     }
@@ -49,7 +45,6 @@ class WalletProvider extends ChangeNotifier {
   Future<void> saveApiKey(String apiKey) async {
     await _secureStorage.write(key: 'API_KEY', value: apiKey);
     _authToken = apiKey;
-
     await fetchBalance();
     await fetchLightningAddress();
     notifyListeners();
@@ -118,7 +113,6 @@ class WalletProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-
   Future<void> fetchLightningAddress() async {
     if (_authToken == null) {
       _lightningAddress = "Not authenticated.";
@@ -154,87 +148,85 @@ class WalletProvider extends ChangeNotifier {
             data["data"]["globals"] != null) {
           final String username = data["data"]["me"]["username"];
           final String lightningDomain = data["data"]["globals"]["lightningAddressDomain"];
-
-      
           _lightningAddress = "$username@$lightningDomain";
         } else {
-          _lightningAddress = "API yanıtında beklenen veri bulunamadı.";
+          _lightningAddress = "Expected data not found in API response.";
         }
       } else if (response.statusCode == 401) {
-        _lightningAddress = "Yetkilendirme Hatası: API anahtarınızı kontrol edin.";
+        _lightningAddress = "Authorization Error: Check your API key.";
       } else {
-        _lightningAddress = "API Hatası: ${response.statusCode}";
+        _lightningAddress = "API Error: ${response.statusCode}";
       }
     } catch (e) {
       _lightningAddress = "Error: $e";
     }
     notifyListeners();
   }
-Future<void> createInvoice(int amountSatoshis, String memo) async {
-  if (_authToken == null) {
-    _invoice = "Not authenticated.";
-    notifyListeners();
-    return;
-  }
 
-  final query = """
-  mutation LnInvoiceCreate(\$input: LnInvoiceCreateInput!) {
-    lnInvoiceCreate(input: \$input) {
-      invoice {
-        paymentRequest
-        paymentHash
-        paymentSecret
-        satoshis
-      }
-      errors {
-        message
+  Future<void> createInvoice(int amountSatoshis, String memo) async {
+    if (_authToken == null) {
+      _invoice = "Not authenticated.";
+      notifyListeners();
+      return;
+    }
+
+    final query = """
+    mutation LnInvoiceCreate(\$input: LnInvoiceCreateInput!) {
+      lnInvoiceCreate(input: \$input) {
+        invoice {
+          paymentRequest
+          paymentHash
+          paymentSecret
+          satoshis
+        }
+        errors {
+          message
+        }
       }
     }
-  }
-  """;
+    """;
 
-  final walletId = await getWalletId();
-  if (walletId == null) {
-    _invoice = "BTC wallet not found.";
-    notifyListeners();
-    return;
-  }
-
-  final variables = {
-    "input": {
-      "amount": amountSatoshis,
-      "walletId": walletId,
-      "memo": memo.isNotEmpty ? memo : ""
+    final walletId = await getWalletId();
+    if (walletId == null) {
+      _invoice = "BTC wallet not found.";
+      notifyListeners();
+      return;
     }
-  };
 
-  try {
-    final response = await http.post(
-      Uri.parse(_apiUrl),
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-KEY": _authToken!,
-      },
-      body: jsonEncode({"query": query, "variables": variables}),
-    );
+    final variables = {
+      "input": {
+        "amount": amountSatoshis,
+        "walletId": walletId,
+        "memo": memo.isNotEmpty ? memo : ""
+      }
+    };
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      if (data["data"]["lnInvoiceCreate"]["errors"] != null &&
-          data["data"]["lnInvoiceCreate"]["errors"].length > 0) {
-        _invoice = data["data"]["lnInvoiceCreate"]["errors"][0]["message"];
+    try {
+      final response = await http.post(
+        Uri.parse(_apiUrl),
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-KEY": _authToken!,
+        },
+        body: jsonEncode({"query": query, "variables": variables}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data["data"]["lnInvoiceCreate"]["errors"] != null &&
+            data["data"]["lnInvoiceCreate"]["errors"].length > 0) {
+          _invoice = data["data"]["lnInvoiceCreate"]["errors"][0]["message"];
+        } else {
+          _invoice = data["data"]["lnInvoiceCreate"]["invoice"]["paymentRequest"];
+        }
       } else {
-        _invoice = data["data"]["lnInvoiceCreate"]["invoice"]["paymentRequest"];
+        _invoice = "Failed to create invoice.";
       }
-    } else {
-      _invoice = "Failed to create invoice.";
+    } catch (e) {
+      _invoice = "Error: $e";
     }
-  } catch (e) {
-    _invoice = "Error: $e";
+    notifyListeners();
   }
-  notifyListeners();
-}
-
 
   Future<String?> getWalletId() async {
     if (_authToken == null) {
@@ -310,10 +302,7 @@ Future<void> createInvoice(int amountSatoshis, String memo) async {
     }
 
     final variables = {
-      "input": {
-        "paymentRequest": paymentRequest,
-        "walletId": walletId
-      }
+      "input": {"paymentRequest": paymentRequest, "walletId": walletId}
     };
 
     try {
@@ -371,11 +360,7 @@ Future<void> createInvoice(int amountSatoshis, String memo) async {
     }
 
     final variables = {
-      "input": {
-        "walletId": walletId,
-        "amount": amountSatoshis,
-        "lnurl": lnurl,
-      }
+      "input": {"walletId": walletId, "amount": amountSatoshis, "lnurl": lnurl}
     };
 
     try {
@@ -405,15 +390,81 @@ Future<void> createInvoice(int amountSatoshis, String memo) async {
     notifyListeners();
   }
 
+  Future<List<Map<String, dynamic>>> getHistory(int count) async {
+    if (_authToken == null) {
+      return [];
+    }
+
+    final query = """
+    query PaymentsWithProof(\$first: Int) {
+      me {
+        defaultAccount {
+          transactions(first: \$first) {
+            edges {
+              node {
+                initiationVia {
+                  ... on InitiationViaLn {
+                    paymentRequest
+                  }
+                }
+                settlementAmount
+                status
+              }
+            }
+          }
+        }
+      }
+    }
+    """;
+
+    final variables = {"first": count};
+
+    try {
+      final response = await http.post(
+        Uri.parse(_apiUrl),
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-KEY": _authToken!,
+        },
+        body: jsonEncode({"query": query, "variables": variables}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List<dynamic> transactions =
+            data["data"]["me"]["defaultAccount"]["transactions"]["edges"];
+        List<Map<String, dynamic>> txList = [];
+
+        for (var tx in transactions) {
+          final node = tx["node"];
+          final initiationVia = node["initiationVia"];
+          if (initiationVia != null && initiationVia["paymentRequest"] != null) {
+            txList.add({
+              "invoice": initiationVia["paymentRequest"],
+              "settlementAmount": node["settlementAmount"],
+              "status": node["status"],
+            });
+          }
+        }
+        return txList;
+      } else {
+        print("Failed to fetch transaction history. Status code: ${response.statusCode}");
+        print("Response: ${response.body}");
+        return [];
+      }
+    } catch (e) {
+      print("Error fetching transaction history: $e");
+      return [];
+    }
+  }
+
   void startPaymentCheck(String invoice) {
     if (_paymentTimer != null && _paymentTimer!.isActive) return;
-
     _paymentTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
       if (_authToken == null) {
         stopPaymentCheck();
         return;
       }
-
       bool isPaid = await checkPaymentStatus(invoice);
       if (isPaid) {
         _paymentSuccessful = true;
@@ -432,8 +483,6 @@ Future<void> createInvoice(int amountSatoshis, String memo) async {
 
   Future<bool> checkPaymentStatus(String paymentRequest) async {
     if (_authToken == null) return false;
-
-    const String apiUrl = 'https://api.blink.sv/graphql';
 
     final Map<String, dynamic> requestBody = {
       "query": """
@@ -462,9 +511,9 @@ Future<void> createInvoice(int amountSatoshis, String memo) async {
 
     try {
       final response = await http.post(
-        Uri.parse(apiUrl),
+        Uri.parse(_apiUrl),
         headers: {
-          "content-type": "application/json",
+          "Content-Type": "application/json",
           "X-API-KEY": _authToken!,
         },
         body: jsonEncode(requestBody),
@@ -473,7 +522,6 @@ Future<void> createInvoice(int amountSatoshis, String memo) async {
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
         final transactions = responseData['data']['me']['defaultAccount']['transactions']['edges'];
-
         for (var transaction in transactions) {
           if (transaction['node']['initiationVia']['paymentRequest'] == paymentRequest &&
               transaction['node']['status'] == 'SUCCESS') {
@@ -482,7 +530,6 @@ Future<void> createInvoice(int amountSatoshis, String memo) async {
         }
       }
     } catch (e) {
-  
       print("Error checking payment status: $e");
     }
     return false;
@@ -490,14 +537,9 @@ Future<void> createInvoice(int amountSatoshis, String memo) async {
 
   Future<double?> convertSatoshisToCurrency(int satoshis, String currency) async {
     try {
-  
       double? btcPrice = await _fetchBtcPrice(currency);
       if (btcPrice == null) return null;
-
-  
       double btcAmount = satoshis / 100000000;
-
-  
       double fiatAmount = btcAmount * btcPrice;
       return fiatAmount;
     } catch (e) {
@@ -506,18 +548,11 @@ Future<void> createInvoice(int amountSatoshis, String memo) async {
     }
   }
 
-
-
   Future<int?> convertCurrencyToSatoshis(double amount, String currency) async {
     try {
-  
       double? btcPrice = await _fetchBtcPrice(currency);
       if (btcPrice == null) return null;
-
-  
       double btcAmount = amount / btcPrice;
-
-  
       int satoshis = (btcAmount * 100000000).round();
       return satoshis;
     } catch (e) {
@@ -526,28 +561,21 @@ Future<void> createInvoice(int amountSatoshis, String memo) async {
     }
   }
 
-
   Future<double?> _fetchBtcPrice(String currency) async {
     try {
-  
       if (_exchangeRateCache.containsKey(currency)) {
         DateTime fetchedTime = _exchangeRateTimestamp[currency]!;
         if (DateTime.now().difference(fetchedTime) < _cacheDuration) {
           return _exchangeRateCache[currency];
         }
       }
-
-  
       final String apiUrl =
           'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=$currency';
-
       final response = await http.get(Uri.parse(apiUrl));
-
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['bitcoin'] != null && data['bitcoin'][currency] != null) {
           double price = (data['bitcoin'][currency] as num).toDouble();
-      
           _exchangeRateCache[currency] = price;
           _exchangeRateTimestamp[currency] = DateTime.now();
           return price;
