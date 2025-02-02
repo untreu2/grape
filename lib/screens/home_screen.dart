@@ -224,7 +224,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ? "Received $settlementAmount satoshis"
         : "Sent ${settlementAmount.abs()} satoshis";
     Color tileColor =
-        settlementAmount >= 0 ? AppColors.success : AppColors.error;
+        settlementAmount >= 0 ? AppColors.success : AppColors.buttonText;
     String truncatedInvoice = invoice.length > 10
         ? '${invoice.substring(0, 10)}...'
         : invoice;

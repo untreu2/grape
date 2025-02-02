@@ -45,7 +45,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ? tx["settlementAmount"] as int
         : int.tryParse(tx["settlementAmount"].toString()) ?? 0;
     Color tileColor =
-        settlementAmount >= 0 ? AppColors.success : AppColors.error;
+        settlementAmount >= 0 ? AppColors.success : AppColors.buttonText;
     final String titleText = settlementAmount >= 0 ? "Received" : "Sent";
     final int? parsedAmount = LightningInvoiceParser.getSatoshiAmount(invoice);
     final String? memo = LightningInvoiceParser.getMemo(invoice);
