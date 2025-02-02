@@ -88,10 +88,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
             const SizedBox(height: 4),
             if (parsedAmount != null)
-              Text(
-                "Amount: $parsedAmount satoshis",
-                style: const TextStyle(color: AppColors.primaryText),
-              ),
+Text(
+  "Amount: $parsedAmount ${parsedAmount == 1 ? 'satoshi' : 'satoshis'}",
+  style: const TextStyle(color: AppColors.primaryText),
+),
+
             if (memo != null && memo.isNotEmpty)
               Text(
                 "Memo: $memo",

@@ -216,13 +216,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildTransactionSummary(Map<String, dynamic> tx) {
-    final String invoice = tx["invoice"] as String;
-    final int settlementAmount = tx["settlementAmount"] is int
-        ? tx["settlementAmount"] as int
-        : int.tryParse(tx["settlementAmount"].toString()) ?? 0;
-    final String titleText = settlementAmount >= 0
-        ? "Received $settlementAmount satoshis"
-        : "Sent ${settlementAmount.abs()} satoshis";
+  final String invoice = tx["invoice"] as String;
+  final int settlementAmount = tx["settlementAmount"] is int
+      ? tx["settlementAmount"] as int
+      : int.tryParse(tx["settlementAmount"].toString()) ?? 0;
+  final String titleText = settlementAmount >= 0
+      ? "Received $settlementAmount ${settlementAmount == 1 ? 'satoshi' : 'satoshis'}"
+      : "Sent ${settlementAmount.abs()} ${settlementAmount.abs() == 1 ? 'satoshi' : 'satoshis'}";
+  
     Color tileColor =
         settlementAmount >= 0 ? AppColors.success : AppColors.buttonText;
     String truncatedInvoice = invoice.length > 10
