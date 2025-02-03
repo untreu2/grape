@@ -13,7 +13,7 @@ import '../pop/drawer.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
-  
+
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
@@ -43,8 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _confettiController =
-        ConfettiController(duration: const Duration(seconds: 3));
+    _confettiController = ConfettiController(duration: const Duration(seconds: 3));
     _fetchBalance();
     _fetchTransactions();
     _balanceTimer = Timer.periodic(
@@ -56,8 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _fetchBalance() async {
-    final walletProvider =
-        Provider.of<WalletProvider>(context, listen: false);
+    final walletProvider = Provider.of<WalletProvider>(context, listen: false);
     await walletProvider.fetchBalance();
     setState(() {
       _isLoading = false;
@@ -67,11 +65,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _checkBalanceChange() async {
-    final walletProvider =
-        Provider.of<WalletProvider>(context, listen: false);
+    final walletProvider = Provider.of<WalletProvider>(context, listen: false);
     await walletProvider.fetchBalance();
-    if (_previousBalance != null &&
-        _previousBalance != walletProvider.balance) {
+    if (_previousBalance != null && _previousBalance != walletProvider.balance) {
       _confettiController?.play();
       if (await Vibration.hasVibrator()) {
         Vibration.vibrate(duration: 500);
@@ -84,8 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _fetchTransactions() async {
-    final walletProvider =
-        Provider.of<WalletProvider>(context, listen: false);
+    final walletProvider = Provider.of<WalletProvider>(context, listen: false);
     try {
       List<Map<String, dynamic>> txs = await walletProvider.getHistory(3);
       if (txs.toString() != _lastTransactions.toString()) {
@@ -216,19 +211,15 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildTransactionSummary(Map<String, dynamic> tx) {
-  final String invoice = tx["invoice"] as String;
-  final int settlementAmount = tx["settlementAmount"] is int
-      ? tx["settlementAmount"] as int
-      : int.tryParse(tx["settlementAmount"].toString()) ?? 0;
-  final String titleText = settlementAmount >= 0
-      ? "Received $settlementAmount ${settlementAmount == 1 ? 'satoshi' : 'satoshis'}"
-      : "Sent ${settlementAmount.abs()} ${settlementAmount.abs() == 1 ? 'satoshi' : 'satoshis'}";
-  
-    Color tileColor =
-        settlementAmount >= 0 ? AppColors.success : AppColors.buttonText;
-    String truncatedInvoice = invoice.length > 10
-        ? '${invoice.substring(0, 10)}...'
-        : invoice;
+    final String invoice = tx["invoice"] as String;
+    final int settlementAmount = tx["settlementAmount"] is int
+        ? tx["settlementAmount"] as int
+        : int.tryParse(tx["settlementAmount"].toString()) ?? 0;
+    final String titleText = settlementAmount >= 0
+        ? "Received $settlementAmount ${settlementAmount == 1 ? 'satoshi' : 'satoshis'}"
+        : "Sent ${settlementAmount.abs()} ${settlementAmount.abs() == 1 ? 'satoshi' : 'satoshis'}";
+    Color tileColor = settlementAmount >= 0 ? AppColors.success : AppColors.buttonText;
+    String truncatedInvoice = invoice.length > 10 ? '${invoice.substring(0, 10)}...' : invoice;
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       color: tileColor.withOpacity(0.1),
@@ -269,13 +260,25 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     return Scaffold(
       drawer: const AppDrawer(),
+      appBar: AppBar(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        elevation: 0,
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu, color: AppColors.primaryText),
+            onPressed: () {
+              Scaffold.of(context).openDrawer();
+            },
+          ),
+        ),
+      ),
       body: Stack(
         children: [
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                const SizedBox(height: 200),
+                const SizedBox(height: 85),
                 Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
