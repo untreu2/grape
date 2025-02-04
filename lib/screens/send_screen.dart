@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:auto_size_text/auto_size_text.dart';
 import '../wallet_provider.dart';
 import '../utils/lnparser.dart';
 import '../utils/colors.dart';
-import 'package:auto_size_text/auto_size_text.dart';
 
 class SendScreen extends StatefulWidget {
-  const SendScreen({Key? key}) : super(key: key);
+  final String? preFilledData;
+
+  const SendScreen({Key? key, this.preFilledData}) : super(key: key);
 
   @override
   _SendScreenState createState() => _SendScreenState();
@@ -28,8 +30,34 @@ class _SendScreenState extends State<SendScreen> {
   @override
   void initState() {
     super.initState();
+
+    if (widget.preFilledData != null && widget.preFilledData!.isNotEmpty) {
+      final data = widget.preFilledData!.trim();
+
+      if (data.toLowerCase().startsWith('ln') && !data.contains('@')) {
+        _paymentMethod = 'invoice';
+        _invoiceController.text = data;
+        _fetchInvoiceDetails();
+      }
+
+      else if (data.contains('@')) {
+        _paymentMethod = 'lnurl';
+        _lnurlController.text = data;
+      }
+
+      else {
+        _paymentMethod = 'invoice';
+        _invoiceController.text = data;
+        _fetchInvoiceDetails();
+      }
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      FocusScope.of(context).requestFocus(_invoiceFocusNode);
+      if (_paymentMethod == 'invoice') {
+        FocusScope.of(context).requestFocus(_invoiceFocusNode);
+      } else {
+        FocusScope.of(context).requestFocus(_lnurlFocusNode);
+      }
     });
   }
 
@@ -93,7 +121,9 @@ class _SendScreenState extends State<SendScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(walletProvider.status!),
-            backgroundColor: walletProvider.status == "SUCCESS" ? AppColors.sendSuccess : AppColors.sendError,
+            backgroundColor: walletProvider.status == "SUCCESS"
+                ? AppColors.sendSuccess
+                : AppColors.sendError,
           ),
         );
       }
@@ -115,6 +145,7 @@ class _SendScreenState extends State<SendScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -171,9 +202,11 @@ class _SendScreenState extends State<SendScreen> {
                             _memo = null;
                           });
                           if (index == 0) {
-                            FocusScope.of(context).requestFocus(_invoiceFocusNode);
+                            FocusScope.of(context)
+                                .requestFocus(_invoiceFocusNode);
                           } else if (index == 1) {
-                            FocusScope.of(context).requestFocus(_lnurlFocusNode);
+                            FocusScope.of(context)
+                                .requestFocus(_lnurlFocusNode);
                           }
                         },
                         borderRadius: BorderRadius.circular(30),
@@ -186,12 +219,14 @@ class _SendScreenState extends State<SendScreen> {
                         textStyle: Theme.of(context).textTheme.bodyLarge,
                         children: const [
                           Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 32.0, vertical: 12.0),
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 32.0, vertical: 12.0),
                             child: Text('Invoice'),
                           ),
                           Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 32.0, vertical: 12.0),
-                            child: Text('LNURL'),
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 32.0, vertical: 12.0),
+                            child: Text('Address'),
                           ),
                         ],
                       ),
@@ -202,13 +237,16 @@ class _SendScreenState extends State<SendScreen> {
                               focusNode: _invoiceFocusNode,
                               decoration: InputDecoration(
                                 labelText: 'Lightning Invoice',
-                                labelStyle: TextStyle(color: AppColors.primaryText),
+                                labelStyle:
+                                    TextStyle(color: AppColors.primaryText),
                                 border: const OutlineInputBorder(),
                                 enabledBorder: OutlineInputBorder(
-                                  borderSide: BorderSide(color: AppColors.border),
+                                  borderSide:
+                                      BorderSide(color: AppColors.border),
                                 ),
                                 focusedBorder: OutlineInputBorder(
-                                  borderSide: BorderSide(color: AppColors.border),
+                                  borderSide:
+                                      BorderSide(color: AppColors.border),
                                 ),
                               ),
                               onChanged: (value) => _fetchInvoiceDetails(),
@@ -225,19 +263,23 @@ class _SendScreenState extends State<SendScreen> {
                                   controller: _lnurlController,
                                   focusNode: _lnurlFocusNode,
                                   decoration: InputDecoration(
-                                    labelText: 'LNURL (someone@some.com)',
-                                    labelStyle: TextStyle(color: AppColors.primaryText),
+                                    labelText:
+                                        'LN Address (e.g. someone@domain.com)',
+                                    labelStyle:
+                                        TextStyle(color: AppColors.primaryText),
                                     border: const OutlineInputBorder(),
                                     enabledBorder: OutlineInputBorder(
-                                      borderSide: BorderSide(color: AppColors.border),
+                                      borderSide:
+                                          BorderSide(color: AppColors.border),
                                     ),
                                     focusedBorder: OutlineInputBorder(
-                                      borderSide: BorderSide(color: AppColors.border),
+                                      borderSide:
+                                          BorderSide(color: AppColors.border),
                                     ),
                                   ),
                                   validator: (value) {
                                     if (value == null || value.isEmpty) {
-                                      return 'Please enter an LNURL';
+                                      return 'Please enter a Lightning Address';
                                     }
                                     return null;
                                   },
@@ -248,13 +290,16 @@ class _SendScreenState extends State<SendScreen> {
                                   keyboardType: TextInputType.number,
                                   decoration: InputDecoration(
                                     labelText: 'Amount (sats)',
-                                    labelStyle: TextStyle(color: AppColors.primaryText),
+                                    labelStyle:
+                                        TextStyle(color: AppColors.primaryText),
                                     border: const OutlineInputBorder(),
                                     enabledBorder: OutlineInputBorder(
-                                      borderSide: BorderSide(color: AppColors.border),
+                                      borderSide:
+                                          BorderSide(color: AppColors.border),
                                     ),
                                     focusedBorder: OutlineInputBorder(
-                                      borderSide: BorderSide(color: AppColors.border),
+                                      borderSide:
+                                          BorderSide(color: AppColors.border),
                                     ),
                                   ),
                                 ),
@@ -270,12 +315,16 @@ class _SendScreenState extends State<SendScreen> {
                                   width: 24,
                                   height: 24,
                                   child: CircularProgressIndicator(
-                                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.buttonText),
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                        AppColors.buttonText),
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : Icon(Icons.currency_bitcoin, color: AppColors.secondaryText),
-                          label: _isLoading ? Text('Paying...') : const Text('Pay'),
+                              : Icon(Icons.currency_bitcoin,
+                                  color: AppColors.secondaryText),
+                          label: _isLoading
+                              ? Text('Paying...')
+                              : const Text('Pay'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.buttonBackground,
                             foregroundColor: AppColors.buttonText,

@@ -1,19 +1,18 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:confetti/confetti.dart';
 import 'package:provider/provider.dart';
-import 'package:vibration/vibration.dart';
 import '../wallet_provider.dart';
 import '../pop/show_qr_dialog.dart';
 import '../pop/show_invoice_dialog.dart';
 import '../screens/send_screen.dart';
 import '../screens/history_screen.dart';
+import '../screens/qr_scan_screen.dart';
 import '../utils/colors.dart';
 import '../pop/drawer.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
-
+  
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
@@ -22,8 +21,6 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = true;
   Timer? _balanceTimer;
   Timer? _transactionsTimer;
-  ConfettiController? _confettiController;
-  String? _previousBalance;
   bool _isBTC = false;
   static const int satoshiPerBTC = 100000000;
 
@@ -43,11 +40,10 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _confettiController = ConfettiController(duration: const Duration(seconds: 3));
     _fetchBalance();
     _fetchTransactions();
-    _balanceTimer = Timer.periodic(
-        const Duration(seconds: 1), (timer) => _checkBalanceChange());
+    _balanceTimer =
+        Timer.periodic(const Duration(seconds: 1), (timer) => _checkBalanceChange());
     _transactionsTimer = Timer.periodic(
       const Duration(seconds: 5),
       (timer) => _fetchTransactions(),
@@ -59,7 +55,6 @@ class _HomeScreenState extends State<HomeScreen> {
     await walletProvider.fetchBalance();
     setState(() {
       _isLoading = false;
-      _previousBalance = walletProvider.balance;
     });
     _convertBalanceToFiat(walletProvider.balance, _selectedFiatCurrency);
   }
@@ -67,14 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _checkBalanceChange() async {
     final walletProvider = Provider.of<WalletProvider>(context, listen: false);
     await walletProvider.fetchBalance();
-    if (_previousBalance != null && _previousBalance != walletProvider.balance) {
-      _confettiController?.play();
-      if (await Vibration.hasVibrator()) {
-        Vibration.vibrate(duration: 500);
-      }
-    }
     setState(() {
-      _previousBalance = walletProvider.balance;
     });
     _convertBalanceToFiat(walletProvider.balance, _selectedFiatCurrency);
   }
@@ -122,7 +110,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _balanceTimer?.cancel();
     _transactionsTimer?.cancel();
-    _confettiController?.dispose();
     super.dispose();
   }
 
@@ -160,9 +147,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildFiatBalance() {
     return GestureDetector(
-      onTap: () {
-        _toggleFiatCurrency();
-      },
+      onTap: _toggleFiatCurrency,
       child: Column(
         children: [
           _fiatBalance != null
@@ -249,6 +234,21 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _scanQrCode() async {
+    final scannedData = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const QrScanPage()),
+    );
+    if (scannedData != null && scannedData is String) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => SendScreen(preFilledData: scannedData),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final walletProvider = Provider.of<WalletProvider>(context);
@@ -272,142 +272,141 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-      body: Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                const SizedBox(height: 85),
-                Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _isBTC = !_isBTC;
-                          });
-                        },
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            return FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(
-                                formatBalance(balance),
-                                style: const TextStyle(
-                                  fontSize: 64,
-                                  fontWeight: FontWeight.bold,
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            const SizedBox(height: 85),
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _isBTC = !_isBTC;
+                      });
+                    },
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        return FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            formatBalance(balance),
+                            style: const TextStyle(
+                              fontSize: 64,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  _buildCryptoLabel(balance),
+                  const SizedBox(height: 20),
+                  _buildFiatBalance(),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            _isTransactionsLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _lastTransactions.isEmpty
+                    ? const Center(child: Text("No transactions found."))
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ..._lastTransactions
+                              .map((tx) => _buildTransactionSummary(tx))
+                              .toList(),
+                          Align(
+                            alignment: Alignment.center,
+                            child: TextButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const HistoryScreen(),
+                                  ),
+                                );
+                              },
+                              child: const Text(
+                                "Show more...",
+                                style: TextStyle(
+                                  color: AppColors.primaryText,
                                 ),
                               ),
-                            );
-                          },
-                        ),
+                            ),
+                          ),
+                        ],
                       ),
-                      _buildCryptoLabel(balance),
-                      const SizedBox(height: 20),
-                      _buildFiatBalance(),
-                    ],
+            const SizedBox(height: 40),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _scanQrCode,
+                icon: const Icon(Icons.qr_code_scanner, color: AppColors.primaryText),
+                label: const Text(
+                  'Scan',
+                  style: TextStyle(fontSize: 20),
+                ),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 18.0),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      showInvoiceDialog(context, (invoice) {
+                        showQrDialog(context, invoice);
+                      });
+                    },
+                    icon: const Icon(
+                      Icons.arrow_downward,
+                      color: AppColors.primaryText,
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 18.0),
+                    ),
+                    label: const Text(
+                      'Receive',
+                      style: TextStyle(fontSize: 20),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 20),
-                _isTransactionsLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _lastTransactions.isEmpty
-                        ? const Center(child: Text("No transactions found."))
-                        : Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              ..._lastTransactions
-                                  .map((tx) => _buildTransactionSummary(tx))
-                                  .toList(),
-                              Align(
-                                alignment: Alignment.center,
-                                child: TextButton(
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => const HistoryScreen(),
-                                      ),
-                                    );
-                                  },
-                                  child: const Text(
-                                    "Show more...",
-                                    style: TextStyle(
-                                      color: AppColors.primaryText,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                const SizedBox(height: 110),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          showInvoiceDialog(context, (invoice) {
-                            showQrDialog(context, invoice);
-                          });
-                        },
-                        icon: const Icon(
-                          Icons.arrow_downward,
-                          color: AppColors.primaryText,
+                const SizedBox(width: 20),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const SendScreen(),
                         ),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 18.0),
-                        ),
-                        label: const Text(
-                          'Receive',
-                          style: TextStyle(fontSize: 20),
-                        ),
-                      ),
+                      );
+                    },
+                    icon: const Icon(
+                      Icons.arrow_upward,
+                      color: AppColors.primaryText,
                     ),
-                    const SizedBox(width: 20),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const SendScreen(),
-                            ),
-                          );
-                        },
-                        icon: const Icon(
-                          Icons.arrow_upward,
-                          color: AppColors.primaryText,
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 18.0),
-                        ),
-                        label: const Text(
-                          'Send',
-                          style: TextStyle(fontSize: 20),
-                        ),
-                      ),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 18.0),
                     ),
-                  ],
+                    label: const Text(
+                      'Send',
+                      style: TextStyle(fontSize: 20),
+                    ),
+                  ),
                 ),
               ],
             ),
-          ),
-          Align(
-            alignment: Alignment.topCenter,
-            child: ConfettiWidget(
-              confettiController: _confettiController!,
-              blastDirectionality: BlastDirectionality.explosive,
-              emissionFrequency: 0.05,
-              numberOfParticles: 30,
-              maxBlastForce: 20,
-              minBlastForce: 10,
-              gravity: 0.1,
-              colors: [AppColors.confettiColor],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
