@@ -23,7 +23,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Timer? _transactionsTimer;
   bool _isBTC = false;
   static const int satoshiPerBTC = 100000000;
-
   double? _fiatBalance;
   String _selectedFiatCurrency = 'usd';
 
@@ -42,12 +41,8 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _fetchBalance();
     _fetchTransactions();
-    _balanceTimer =
-        Timer.periodic(const Duration(seconds: 1), (timer) => _checkBalanceChange());
-    _transactionsTimer = Timer.periodic(
-      const Duration(seconds: 5),
-      (timer) => _fetchTransactions(),
-    );
+    _balanceTimer = Timer.periodic(const Duration(seconds: 1), (timer) => _checkBalanceChange());
+    _transactionsTimer = Timer.periodic(const Duration(seconds: 5), (timer) => _fetchTransactions());
   }
 
   Future<void> _fetchBalance() async {
@@ -62,8 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _checkBalanceChange() async {
     final walletProvider = Provider.of<WalletProvider>(context, listen: false);
     await walletProvider.fetchBalance();
-    setState(() {
-    });
+    setState(() {});
     _convertBalanceToFiat(walletProvider.balance, _selectedFiatCurrency);
   }
 
@@ -167,13 +161,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-          const SizedBox(height: 4),
-          Text(
-            _selectedFiatCurrency.toUpperCase(),
-            style: const TextStyle(
-              fontSize: 16,
-              color: AppColors.success,
-              fontWeight: FontWeight.w500,
+          const Padding(
+            padding: EdgeInsets.only(top: 4.0),
+            child: Text(
+              'USD',
+              style: TextStyle(
+                fontSize: 16,
+                color: AppColors.success,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],
@@ -258,6 +254,7 @@ class _HomeScreenState extends State<HomeScreen> {
         body: Center(child: CircularProgressIndicator()),
       );
     }
+    
     return Scaffold(
       drawer: const AppDrawer(),
       appBar: AppBar(
@@ -272,140 +269,148 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            const SizedBox(height: 85),
-            Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _isBTC = !_isBTC;
-                      });
-                    },
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        return FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            formatBalance(balance),
-                            style: const TextStyle(
-                              fontSize: 64,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        );
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: Column(
+            children: [
+              const Spacer(flex: 2),
+              Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _isBTC = !_isBTC;
+                        });
                       },
-                    ),
-                  ),
-                  _buildCryptoLabel(balance),
-                  const SizedBox(height: 20),
-                  _buildFiatBalance(),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            _isTransactionsLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _lastTransactions.isEmpty
-                    ? const Center(child: Text("No transactions found."))
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          ..._lastTransactions
-                              .map((tx) => _buildTransactionSummary(tx))
-                              .toList(),
-                          Align(
-                            alignment: Alignment.center,
-                            child: TextButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        const HistoryScreen(),
-                                  ),
-                                );
-                              },
-                              child: const Text(
-                                "Show more...",
-                                style: TextStyle(
-                                  color: AppColors.primaryText,
-                                ),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          return FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              formatBalance(balance),
+                              style: const TextStyle(
+                                fontSize: 64,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                          ),
-                        ],
+                          );
+                        },
                       ),
-            const SizedBox(height: 40),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _scanQrCode,
-                icon: const Icon(Icons.qr_code_scanner, color: AppColors.primaryText),
-                label: const Text(
-                  'Scan',
-                  style: TextStyle(fontSize: 20),
-                ),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 18.0),
+                    ),
+                    _buildCryptoLabel(balance),
+                    const Padding(padding: EdgeInsets.only(top: 20.0)),
+                    _buildFiatBalance(),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      showInvoiceDialog(context, (invoice) {
-                        showQrDialog(context, invoice);
-                      });
-                    },
-                    icon: const Icon(
-                      Icons.arrow_downward,
-                      color: AppColors.primaryText,
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 18.0),
-                    ),
-                    label: const Text(
-                      'Receive',
-                      style: TextStyle(fontSize: 20),
+              const Spacer(flex: 1),
+              Expanded(
+                flex: 4,
+                child: _isTransactionsLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _lastTransactions.isEmpty
+                        ? const Center(child: Text("No transactions found."))
+                        : ListView(
+                            children: [
+                              ..._lastTransactions.map((tx) => _buildTransactionSummary(tx)).toList(),
+                              Align(
+                                alignment: Alignment.center,
+                                child: TextButton(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => const HistoryScreen(),
+                                      ),
+                                    );
+                                  },
+                                  child: const Text(
+                                    "Show more...",
+                                    style: TextStyle(
+                                      color: AppColors.primaryText,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+              ),
+              const Spacer(flex: 5),
+              Column(
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _scanQrCode,
+                      icon: const Icon(Icons.qr_code_scanner, color: AppColors.primaryText),
+                      label: const Text(
+                        'Scan',
+                        style: TextStyle(fontSize: 20),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 18.0),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const SendScreen(),
+                  Container(
+                    margin: const EdgeInsets.only(top: 20.0),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              showInvoiceDialog(context, (invoice) {
+                                showQrDialog(context, invoice);
+                              });
+                            },
+                            icon: const Icon(
+                              Icons.arrow_downward,
+                              color: AppColors.primaryText,
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 18.0),
+                            ),
+                            label: const Text(
+                              'Receive',
+                              style: TextStyle(fontSize: 20),
+                            ),
+                          ),
                         ),
-                      );
-                    },
-                    icon: const Icon(
-                      Icons.arrow_upward,
-                      color: AppColors.primaryText,
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 18.0),
-                    ),
-                    label: const Text(
-                      'Send',
-                      style: TextStyle(fontSize: 20),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const SendScreen(),
+                                ),
+                              );
+                            },
+                            icon: const Icon(
+                              Icons.arrow_upward,
+                              color: AppColors.primaryText,
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 18.0),
+                            ),
+                            label: const Text(
+                              'Send',
+                              style: TextStyle(fontSize: 20),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+              const Spacer(flex: 1),
+            ],
+          ),
         ),
       ),
     );
