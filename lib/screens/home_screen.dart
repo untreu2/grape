@@ -274,7 +274,7 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Column(
             children: [
-              const Spacer(flex: 2),
+              const Spacer(flex: 3),
               Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -306,7 +306,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-              const Spacer(flex: 1),
+              const Spacer(flex: 2),
               Expanded(
                 flex: 4,
                 child: _isTransactionsLoading
@@ -338,7 +338,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ],
                           ),
               ),
-              const Spacer(flex: 5),
+              const Spacer(flex: 3),
               Column(
                 children: [
                   SizedBox(
