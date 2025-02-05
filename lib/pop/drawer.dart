@@ -45,6 +45,16 @@ class AppDrawer extends StatelessWidget {
             },
           ),
           ListTile(
+            leading: Icon(Icons.account_balance_wallet, color: AppColors.secondaryText),
+            title: Text(
+              'Deposit via On-Chain',
+              style: TextStyle(color: AppColors.secondaryText),
+            ),
+            onTap: () {
+              Navigator.pushNamed(context, '/onchain');
+            },
+          ),
+          ListTile(
             leading: Icon(Icons.exit_to_app, color: AppColors.secondaryText),
             title: Text(
               'Logout',

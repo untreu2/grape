@@ -29,6 +29,9 @@ class WalletProvider extends ChangeNotifier {
   String? _lightningAddress;
   String? get lightningAddress => _lightningAddress;
 
+  String? _onChainAddress;
+  String? get onChainAddress => _onChainAddress;
+
   WalletProvider() {
     _loadApiKey();
   }
@@ -55,6 +58,7 @@ class WalletProvider extends ChangeNotifier {
     _authToken = null;
     _balance = null;
     _lightningAddress = null;
+    _onChainAddress = null;
     notifyListeners();
   }
 
@@ -147,7 +151,8 @@ class WalletProvider extends ChangeNotifier {
             data["data"]["me"] != null &&
             data["data"]["globals"] != null) {
           final String username = data["data"]["me"]["username"];
-          final String lightningDomain = data["data"]["globals"]["lightningAddressDomain"];
+          final String lightningDomain =
+              data["data"]["globals"]["lightningAddressDomain"];
           _lightningAddress = "$username@$lightningDomain";
         } else {
           _lightningAddress = "Expected data not found in API response.";
@@ -217,7 +222,8 @@ class WalletProvider extends ChangeNotifier {
             data["data"]["lnInvoiceCreate"]["errors"].length > 0) {
           _invoice = data["data"]["lnInvoiceCreate"]["errors"][0]["message"];
         } else {
-          _invoice = data["data"]["lnInvoiceCreate"]["invoice"]["paymentRequest"];
+          _invoice =
+              data["data"]["lnInvoiceCreate"]["invoice"]["paymentRequest"];
         }
       } else {
         _invoice = "Failed to create invoice.";
@@ -587,6 +593,68 @@ class WalletProvider extends ChangeNotifier {
       print("Error fetching BTC price from CoinGecko: $e");
     }
     return null;
+  }
+
+  Future<void> createOnChainAddress() async {
+    if (_authToken == null) {
+      _onChainAddress = "Not authenticated.";
+      notifyListeners();
+      return;
+    }
+
+    final walletId = await getWalletId();
+    if (walletId == null) {
+      _onChainAddress = "BTC wallet not found.";
+      notifyListeners();
+      return;
+    }
+
+    final query = """
+    mutation onChainAddressCreate(\$input: OnChainAddressCreateInput!) {
+      onChainAddressCreate(input: \$input) {
+        address
+        errors {
+          message
+        }
+      }
+    }
+    """;
+
+    final variables = {
+      "input": {
+        "walletId": walletId,
+      }
+    };
+
+    try {
+      final response = await http.post(
+        Uri.parse(_apiUrl),
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-KEY": _authToken!,
+        },
+        body: jsonEncode({"query": query, "variables": variables}),
+      );
+
+      print("Status Code: ${response.statusCode}");
+      print("Response Body: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final result = data["data"]["onChainAddressCreate"];
+        if (result["errors"] != null && result["errors"].length > 0) {
+          _onChainAddress = "Error: ${result["errors"][0]["message"]}";
+        } else {
+          _onChainAddress = result["address"];
+        }
+      } else {
+        _onChainAddress =
+            "Failed to create on-chain address. Status Code: ${response.statusCode}";
+      }
+    } catch (e) {
+      _onChainAddress = "Error: $e";
+    }
+    notifyListeners();
   }
 
   @override

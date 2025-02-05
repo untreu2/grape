@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'screens/history_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'wallet_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/history_screen.dart';
+import 'screens/onchaindepo.dart';
 import 'utils/colors.dart';
 
 void main() {
@@ -38,11 +39,26 @@ class MyApp extends StatelessWidget {
         ),
         textTheme: GoogleFonts.montserratTextTheme(
           const TextTheme(
-            displayLarge: TextStyle(fontSize: 32.0, fontWeight: FontWeight.bold, color: AppColors.primaryText),
-            titleLarge: TextStyle(fontSize: 20.0, fontWeight: FontWeight.bold, color: AppColors.primaryText),
-            bodyLarge: TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold, color: AppColors.primaryText),
-            bodyMedium: TextStyle(fontSize: 14.0, fontWeight: FontWeight.bold, color: AppColors.primaryText),
-            labelLarge: TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold, color: AppColors.buttonText),
+            displayLarge: TextStyle(
+                fontSize: 32.0,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primaryText),
+            titleLarge: TextStyle(
+                fontSize: 20.0,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primaryText),
+            bodyLarge: TextStyle(
+                fontSize: 16.0,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primaryText),
+            bodyMedium: TextStyle(
+                fontSize: 14.0,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primaryText),
+            labelLarge: TextStyle(
+                fontSize: 16.0,
+                fontWeight: FontWeight.bold,
+                color: AppColors.buttonText),
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
@@ -73,7 +89,8 @@ class MyApp extends StatelessWidget {
             foregroundColor: AppColors.buttonText,
             backgroundColor: AppColors.buttonBackground,
             textStyle: GoogleFonts.montserrat(fontWeight: FontWeight.bold),
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
           ),
         ),
         toggleButtonsTheme: ToggleButtonsThemeData(
@@ -91,6 +108,7 @@ class MyApp extends StatelessWidget {
         '/login': (context) => const LoginScreen(),
         '/home': (context) => const HomeScreen(),
         '/history': (context) => const HistoryScreen(),
+        '/onchain': (context) => const OnChainAddressPage(),
       },
     );
   }
@@ -112,7 +130,8 @@ class _InitialScreenState extends State<InitialScreen> {
 
   Future<void> _checkLogin() async {
     Future.delayed(Duration.zero, () {
-      final walletProvider = Provider.of<WalletProvider>(context, listen: false);
+      final walletProvider =
+          Provider.of<WalletProvider>(context, listen: false);
       walletProvider.fetchBalance();
     });
 
