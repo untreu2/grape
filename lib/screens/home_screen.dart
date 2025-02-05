@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
 import '../wallet_provider.dart';
 import '../pop/show_qr_dialog.dart';
 import '../pop/show_invoice_dialog.dart';
@@ -12,7 +15,7 @@ import '../pop/drawer.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
-  
+
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
@@ -21,28 +24,45 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = true;
   Timer? _balanceTimer;
   Timer? _transactionsTimer;
+  Timer? _priceTimer;
   bool _isBTC = false;
   static const int satoshiPerBTC = 100000000;
   double? _fiatBalance;
   String _selectedFiatCurrency = 'usd';
-
+  final Map<String, double> _conversionRates = {
+    'usd': 1.0,
+    'eur': 0.92,
+    'gbp': 0.80,
+    'try': 27.0,
+  };
   final Map<String, String> _currencySymbols = {
     'usd': '\$',
     'eur': '€',
     'gbp': '£',
     'try': '₺',
   };
-
   List<Map<String, dynamic>> _lastTransactions = [];
   bool _isTransactionsLoading = true;
+  double? _btcPrice;
 
   @override
   void initState() {
     super.initState();
+    _loadPreferences();
     _fetchBalance();
     _fetchTransactions();
     _balanceTimer = Timer.periodic(const Duration(seconds: 1), (timer) => _checkBalanceChange());
     _transactionsTimer = Timer.periodic(const Duration(seconds: 5), (timer) => _fetchTransactions());
+    _priceTimer = Timer.periodic(const Duration(seconds: 10), (timer) => _updateBtcPrice());
+    _updateBtcPrice();
+  }
+
+  Future<void> _loadPreferences() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isBTC = prefs.getBool('isBTC') ?? false;
+      _selectedFiatCurrency = prefs.getString('selectedFiatCurrency') ?? 'usd';
+    });
   }
 
   Future<void> _fetchBalance() async {
@@ -51,26 +71,24 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _isLoading = false;
     });
-    _convertBalanceToFiat(walletProvider.balance, _selectedFiatCurrency);
+    _convertBalanceToFiatWithPrice(walletProvider.balance, _selectedFiatCurrency);
   }
 
   Future<void> _checkBalanceChange() async {
     final walletProvider = Provider.of<WalletProvider>(context, listen: false);
     await walletProvider.fetchBalance();
     setState(() {});
-    _convertBalanceToFiat(walletProvider.balance, _selectedFiatCurrency);
+    _convertBalanceToFiatWithPrice(walletProvider.balance, _selectedFiatCurrency);
   }
 
   Future<void> _fetchTransactions() async {
     final walletProvider = Provider.of<WalletProvider>(context, listen: false);
     try {
-      List<Map<String, dynamic>> txs = await walletProvider.getHistory(3);
-      if (txs.toString() != _lastTransactions.toString()) {
-        setState(() {
-          _lastTransactions = txs;
-          _isTransactionsLoading = false;
-        });
-      }
+      List<Map<String, dynamic>> txs = await walletProvider.getHistory(1);
+      setState(() {
+        _lastTransactions = txs;
+        _isTransactionsLoading = false;
+      });
     } catch (e) {
       setState(() {
         _lastTransactions = [];
@@ -79,24 +97,39 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _convertBalanceToFiat(String? balance, String currency) async {
-    if (balance == null) {
+  Future<void> _updateBtcPrice() async {
+    try {
+      final response = await http.get(
+        Uri.parse("https://api.coindesk.com/v1/bpi/currentprice/USD.json"),
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        double priceUsd = data["bpi"]["USD"]["rate_float"];
+        setState(() {
+          _btcPrice = priceUsd;
+        });
+        final walletProvider = Provider.of<WalletProvider>(context, listen: false);
+        _convertBalanceToFiatWithPrice(walletProvider.balance, _selectedFiatCurrency);
+      } else {
+        print("Failed to fetch BTC price from CoinDesk: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("Failed to fetch BTC price from CoinDesk: $e");
+    }
+  }
+
+  void _convertBalanceToFiatWithPrice(String? balance, String currency) {
+    if (balance == null || _btcPrice == null) {
       setState(() {
         _fiatBalance = null;
       });
       return;
     }
     int satoshis = int.tryParse(balance) ?? 0;
-    if (satoshis == 0) {
-      setState(() {
-        _fiatBalance = 0.0;
-      });
-      return;
-    }
-    double? fiatAmount = await Provider.of<WalletProvider>(context, listen: false)
-        .convertSatoshisToCurrency(satoshis, currency);
+    double btcValue = satoshis / satoshiPerBTC;
+    double conversionRate = _conversionRates[currency] ?? 1.0;
     setState(() {
-      _fiatBalance = fiatAmount;
+      _fiatBalance = btcValue * _btcPrice! * conversionRate;
     });
   }
 
@@ -104,6 +137,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _balanceTimer?.cancel();
     _transactionsTimer?.cancel();
+    _priceTimer?.cancel();
     super.dispose();
   }
 
@@ -127,10 +161,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildCryptoLabel(String? balance) {
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
         setState(() {
           _isBTC = !_isBTC;
         });
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('isBTC', _isBTC);
       },
       child: Text(
         getBalanceLabel(balance),
@@ -161,11 +197,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-          const Padding(
-            padding: EdgeInsets.only(top: 4.0),
+          Padding(
+            padding: const EdgeInsets.only(top: 4.0),
             child: Text(
-              'USD',
-              style: TextStyle(
+              _selectedFiatCurrency.toUpperCase(),
+              style: const TextStyle(
                 fontSize: 16,
                 color: AppColors.success,
                 fontWeight: FontWeight.w500,
@@ -177,7 +213,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _toggleFiatCurrency() {
+  void _toggleFiatCurrency() async {
     List<String> currencies = _currencySymbols.keys.toList();
     int currentIndex = currencies.indexOf(_selectedFiatCurrency);
     int nextIndex = (currentIndex + 1) % currencies.length;
@@ -185,10 +221,10 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _selectedFiatCurrency = nextCurrency;
     });
-    _convertBalanceToFiat(
-      Provider.of<WalletProvider>(context, listen: false).balance,
-      nextCurrency,
-    );
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('selectedFiatCurrency', _selectedFiatCurrency);
+    final walletProvider = Provider.of<WalletProvider>(context, listen: false);
+    _convertBalanceToFiatWithPrice(walletProvider.balance, nextCurrency);
   }
 
   Widget _buildTransactionSummary(Map<String, dynamic> tx) {
@@ -254,7 +290,7 @@ class _HomeScreenState extends State<HomeScreen> {
         body: Center(child: CircularProgressIndicator()),
       );
     }
-    
+
     return Scaffold(
       drawer: const AppDrawer(),
       appBar: AppBar(
@@ -274,16 +310,18 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Column(
             children: [
-              const Spacer(flex: 3),
+              const Spacer(flex: 2),
               Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     GestureDetector(
-                      onTap: () {
+                      onTap: () async {
                         setState(() {
                           _isBTC = !_isBTC;
                         });
+                        SharedPreferences prefs = await SharedPreferences.getInstance();
+                        await prefs.setBool('isBTC', _isBTC);
                       },
                       child: LayoutBuilder(
                         builder: (context, constraints) {
@@ -306,16 +344,17 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-              const Spacer(flex: 2),
+              const Spacer(flex: 1),
               Expanded(
                 flex: 4,
                 child: _isTransactionsLoading
                     ? const Center(child: CircularProgressIndicator())
                     : _lastTransactions.isEmpty
                         ? const Center(child: Text("No transactions found."))
-                        : ListView(
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              ..._lastTransactions.map((tx) => _buildTransactionSummary(tx)).toList(),
+                              _buildTransactionSummary(_lastTransactions.first),
                               Align(
                                 alignment: Alignment.center,
                                 child: TextButton(
