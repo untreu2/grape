@@ -12,6 +12,7 @@ import '../screens/history_screen.dart';
 import '../screens/qr_scan_screen.dart';
 import '../utils/colors.dart';
 import '../pop/drawer.dart';
+import '../utils/lnparser.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -84,7 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _fetchTransactions() async {
     final walletProvider = Provider.of<WalletProvider>(context, listen: false);
     try {
-      List<Map<String, dynamic>> txs = await walletProvider.getHistory(1);
+      List<Map<String, dynamic>> txs = await walletProvider.getHistory(2);
       setState(() {
         _lastTransactions = txs;
         _isTransactionsLoading = false;
@@ -232,9 +233,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final int settlementAmount = tx["settlementAmount"] is int
         ? tx["settlementAmount"] as int
         : int.tryParse(tx["settlementAmount"].toString()) ?? 0;
-    final String titleText = settlementAmount >= 0
-        ? "Received $settlementAmount ${settlementAmount == 1 ? 'satoshi' : 'satoshis'}"
-        : "Sent ${settlementAmount.abs()} ${settlementAmount.abs() == 1 ? 'satoshi' : 'satoshis'}";
+    final int? parsedAmount = LightningInvoiceParser.getSatoshiAmount(invoice);
+    final String? memo = LightningInvoiceParser.getMemo(invoice);
+    String titleText;
+    if (settlementAmount >= 0) {
+      titleText = "Received ${parsedAmount ?? settlementAmount} ${((parsedAmount ?? settlementAmount) == 1) ? 'satoshi' : 'satoshis'}";
+    } else {
+      titleText = "Sent ${parsedAmount ?? settlementAmount.abs()} ${((parsedAmount ?? settlementAmount.abs()) == 1) ? 'satoshi' : 'satoshis'}";
+    }
     Color tileColor = settlementAmount >= 0 ? AppColors.success : AppColors.buttonText;
     String truncatedInvoice = invoice.length > 10 ? '${invoice.substring(0, 10)}...' : invoice;
     return Card(
@@ -253,14 +259,27 @@ class _HomeScreenState extends State<HomeScreen> {
             color: AppColors.primaryText,
           ),
         ),
-        subtitle: Text(
-          "Payment Request: $truncatedInvoice",
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            fontSize: 12,
-            color: AppColors.secondaryText,
-          ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Payment Request: $truncatedInvoice",
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.secondaryText,
+              ),
+            ),
+            if (memo != null && memo.isNotEmpty)
+              Text(
+                "Memo: $memo",
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.primaryText,
+                ),
+              ),
+          ],
         ),
       ),
     );
