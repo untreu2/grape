@@ -26,7 +26,6 @@ class _OnChainAddressPageState extends State<OnChainAddressPage> {
       body: Consumer<WalletProvider>(
         builder: (context, walletProvider, child) {
           final onChainAddress = walletProvider.onChainAddress;
-
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -35,7 +34,15 @@ class _OnChainAddressPageState extends State<OnChainAddressPage> {
                   : Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const SizedBox(height: 10),
+                        const Text(
+                          "5.000 sats fees for on-chain payment below 1.000.000 sats",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 20),
                         QrImageView(
                           data: onChainAddress,
                           version: QrVersions.auto,
