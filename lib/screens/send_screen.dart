@@ -22,6 +22,7 @@ class _SendScreenState extends State<SendScreen> {
   String _paymentMethod = 'invoice';
   int? _requestedAmount;
   String? _memo;
+  double? _fee;
   bool _isLoading = false;
 
   final FocusNode _invoiceFocusNode = FocusNode();
@@ -30,28 +31,21 @@ class _SendScreenState extends State<SendScreen> {
   @override
   void initState() {
     super.initState();
-
     if (widget.preFilledData != null && widget.preFilledData!.isNotEmpty) {
       final data = widget.preFilledData!.trim();
-
       if (data.toLowerCase().startsWith('ln') && !data.contains('@')) {
         _paymentMethod = 'invoice';
         _invoiceController.text = data;
         _fetchInvoiceDetails();
-      }
-
-      else if (data.contains('@')) {
+      } else if (data.contains('@')) {
         _paymentMethod = 'lnurl';
         _lnurlController.text = data;
-      }
-
-      else {
+      } else {
         _paymentMethod = 'invoice';
         _invoiceController.text = data;
         _fetchInvoiceDetails();
       }
     }
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_paymentMethod == 'invoice') {
         FocusScope.of(context).requestFocus(_invoiceFocusNode);
@@ -71,12 +65,13 @@ class _SendScreenState extends State<SendScreen> {
     super.dispose();
   }
 
-  void _fetchInvoiceDetails() {
+  Future<void> _fetchInvoiceDetails() async {
     final invoice = _invoiceController.text.trim();
     if (invoice.isEmpty) {
       setState(() {
         _requestedAmount = null;
         _memo = null;
+        _fee = null;
         _amountController.clear();
       });
       return;
@@ -87,6 +82,12 @@ class _SendScreenState extends State<SendScreen> {
       _requestedAmount = parsedAmount;
       _memo = parsedMemo;
       _amountController.text = _requestedAmount?.toString() ?? '';
+      _fee = null;
+    });
+    final walletProvider = Provider.of<WalletProvider>(context, listen: false);
+    final fee = await walletProvider.probeInvoiceFee(invoice);
+    setState(() {
+      _fee = fee;
     });
   }
 
@@ -143,9 +144,10 @@ class _SendScreenState extends State<SendScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isInvoicePaymentDisabled = _paymentMethod == 'invoice' &&
+        (_invoiceController.text.trim().isNotEmpty && _fee == null);
     return Scaffold(
       backgroundColor: AppColors.background,
-
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -200,6 +202,7 @@ class _SendScreenState extends State<SendScreen> {
                             _amountController.clear();
                             _requestedAmount = null;
                             _memo = null;
+                            _fee = null;
                           });
                           if (index == 0) {
                             FocusScope.of(context)
@@ -309,7 +312,9 @@ class _SendScreenState extends State<SendScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
-                          onPressed: _isLoading ? null : _sendPayment,
+                          onPressed: (_isLoading || isInvoicePaymentDisabled)
+                              ? null
+                              : _sendPayment,
                           icon: _isLoading
                               ? SizedBox(
                                   width: 24,
@@ -335,6 +340,22 @@ class _SendScreenState extends State<SendScreen> {
                           ),
                         ),
                       ),
+                      if (_paymentMethod == 'invoice' &&
+                          _invoiceController.text.trim().isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text(
+                            _fee == null
+                                ? "Estimating fee..."
+                                : _fee == 1
+                                    ? "1 sat"
+                                    : "Fee: ${_fee!.toStringAsFixed(0)} sats",
+                            style: TextStyle(
+                              color: AppColors.secondaryText,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),

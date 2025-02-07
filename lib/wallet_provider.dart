@@ -7,28 +7,21 @@ import 'package:http/http.dart' as http;
 class WalletProvider extends ChangeNotifier {
   final String _apiUrl = "https://api.blink.sv/graphql";
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
-
   String? _balance;
   String? get balance => _balance;
-
   String? _invoice;
   String? get invoice => _invoice;
-
   String? _status;
   String? get status => _status;
-
   bool _paymentSuccessful = false;
   bool get paymentSuccessful => _paymentSuccessful;
-
   Timer? _paymentTimer;
   String? _authToken;
   final Map<String, double> _exchangeRateCache = {};
   final Map<String, DateTime> _exchangeRateTimestamp = {};
   final Duration _cacheDuration = Duration(minutes: 5);
-
   String? _lightningAddress;
   String? get lightningAddress => _lightningAddress;
-
   String? _onChainAddress;
   String? get onChainAddress => _onChainAddress;
 
@@ -73,7 +66,6 @@ class WalletProvider extends ChangeNotifier {
       notifyListeners();
       return;
     }
-
     final query = """
     query Me {
       me {
@@ -86,17 +78,8 @@ class WalletProvider extends ChangeNotifier {
       }
     }
     """;
-
     try {
-      final response = await http.post(
-        Uri.parse(_apiUrl),
-        headers: {
-          "Content-Type": "application/json",
-          "X-API-KEY": _authToken!,
-        },
-        body: jsonEncode({"query": query}),
-      );
-
+      final response = await http.post(Uri.parse(_apiUrl), headers: {"Content-Type": "application/json", "X-API-KEY": _authToken!}, body: jsonEncode({"query": query}));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final wallets = data["data"]["me"]["defaultAccount"]["wallets"];
@@ -123,7 +106,6 @@ class WalletProvider extends ChangeNotifier {
       notifyListeners();
       return;
     }
-
     final query = """
     query GetUserAndGlobalData {
       me {
@@ -134,25 +116,13 @@ class WalletProvider extends ChangeNotifier {
       }
     }
     """;
-
     try {
-      final response = await http.post(
-        Uri.parse(_apiUrl),
-        headers: {
-          "Content-Type": "application/json",
-          "X-API-KEY": _authToken!,
-        },
-        body: jsonEncode({"query": query}),
-      );
-
+      final response = await http.post(Uri.parse(_apiUrl), headers: {"Content-Type": "application/json", "X-API-KEY": _authToken!}, body: jsonEncode({"query": query}));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        if (data["data"] != null &&
-            data["data"]["me"] != null &&
-            data["data"]["globals"] != null) {
+        if (data["data"] != null && data["data"]["me"] != null && data["data"]["globals"] != null) {
           final String username = data["data"]["me"]["username"];
-          final String lightningDomain =
-              data["data"]["globals"]["lightningAddressDomain"];
+          final String lightningDomain = data["data"]["globals"]["lightningAddressDomain"];
           _lightningAddress = "$username@$lightningDomain";
         } else {
           _lightningAddress = "Expected data not found in API response.";
@@ -174,7 +144,6 @@ class WalletProvider extends ChangeNotifier {
       notifyListeners();
       return;
     }
-
     final query = """
     mutation LnInvoiceCreate(\$input: LnInvoiceCreateInput!) {
       lnInvoiceCreate(input: \$input) {
@@ -190,40 +159,23 @@ class WalletProvider extends ChangeNotifier {
       }
     }
     """;
-
     final walletId = await getWalletId();
     if (walletId == null) {
       _invoice = "BTC wallet not found.";
       notifyListeners();
       return;
     }
-
     final variables = {
-      "input": {
-        "amount": amountSatoshis,
-        "walletId": walletId,
-        "memo": memo.isNotEmpty ? memo : ""
-      }
+      "input": {"amount": amountSatoshis, "walletId": walletId, "memo": memo.isNotEmpty ? memo : ""}
     };
-
     try {
-      final response = await http.post(
-        Uri.parse(_apiUrl),
-        headers: {
-          "Content-Type": "application/json",
-          "X-API-KEY": _authToken!,
-        },
-        body: jsonEncode({"query": query, "variables": variables}),
-      );
-
+      final response = await http.post(Uri.parse(_apiUrl), headers: {"Content-Type": "application/json", "X-API-KEY": _authToken!}, body: jsonEncode({"query": query, "variables": variables}));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        if (data["data"]["lnInvoiceCreate"]["errors"] != null &&
-            data["data"]["lnInvoiceCreate"]["errors"].length > 0) {
+        if (data["data"]["lnInvoiceCreate"]["errors"] != null && data["data"]["lnInvoiceCreate"]["errors"].length > 0) {
           _invoice = data["data"]["lnInvoiceCreate"]["errors"][0]["message"];
         } else {
-          _invoice =
-              data["data"]["lnInvoiceCreate"]["invoice"]["paymentRequest"];
+          _invoice = data["data"]["lnInvoiceCreate"]["invoice"]["paymentRequest"];
         }
       } else {
         _invoice = "Failed to create invoice.";
@@ -238,7 +190,6 @@ class WalletProvider extends ChangeNotifier {
     if (_authToken == null) {
       return null;
     }
-
     final query = """
     query Me {
       me {
@@ -252,17 +203,8 @@ class WalletProvider extends ChangeNotifier {
       }
     }
     """;
-
     try {
-      final response = await http.post(
-        Uri.parse(_apiUrl),
-        headers: {
-          "Content-Type": "application/json",
-          "X-API-KEY": _authToken!,
-        },
-        body: jsonEncode({"query": query}),
-      );
-
+      final response = await http.post(Uri.parse(_apiUrl), headers: {"Content-Type": "application/json", "X-API-KEY": _authToken!}, body: jsonEncode({"query": query}));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final wallets = data["data"]["me"]["defaultAccount"]["wallets"];
@@ -280,13 +222,47 @@ class WalletProvider extends ChangeNotifier {
     }
   }
 
+  Future<double?> probeInvoiceFee(String paymentRequest) async {
+    if (_authToken == null) return null;
+    final walletId = await getWalletId();
+    if (walletId == null) return null;
+    final query = """
+    mutation lnInvoiceFeeProbe(\$input: LnInvoiceFeeProbeInput!) {
+      lnInvoiceFeeProbe(input: \$input) {
+        errors {
+          message
+        }
+        amount
+      }
+    }
+    """;
+    final variables = {
+      "input": {"paymentRequest": paymentRequest, "walletId": walletId}
+    };
+    try {
+      final response = await http.post(Uri.parse(_apiUrl), headers: {"Content-Type": "application/json", "X-API-KEY": _authToken!}, body: jsonEncode({"query": query, "variables": variables}));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final result = data["data"]["lnInvoiceFeeProbe"];
+        if (result["errors"] != null && (result["errors"] as List).isNotEmpty) {
+          return null;
+        } else {
+          double fee = (result["amount"] as num).toDouble();
+          return fee;
+        }
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   Future<void> payInvoice(String paymentRequest) async {
     if (_authToken == null) {
       _status = "Not authenticated.";
       notifyListeners();
       return;
     }
-
     final query = """
     mutation LnInvoicePaymentSend(\$input: LnInvoicePaymentInput!) {
       lnInvoicePaymentSend(input: \$input) {
@@ -299,32 +275,18 @@ class WalletProvider extends ChangeNotifier {
       }
     }
     """;
-
     final walletId = await getWalletId();
     if (walletId == null) {
       _status = "BTC wallet not found.";
       notifyListeners();
       return;
     }
-
-    final variables = {
-      "input": {"paymentRequest": paymentRequest, "walletId": walletId}
-    };
-
+    final variables = {"input": {"paymentRequest": paymentRequest, "walletId": walletId}};
     try {
-      final response = await http.post(
-        Uri.parse(_apiUrl),
-        headers: {
-          "Content-Type": "application/json",
-          "X-API-KEY": _authToken!,
-        },
-        body: jsonEncode({"query": query, "variables": variables}),
-      );
-
+      final response = await http.post(Uri.parse(_apiUrl), headers: {"Content-Type": "application/json", "X-API-KEY": _authToken!}, body: jsonEncode({"query": query, "variables": variables}));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        if (data["data"]["lnInvoicePaymentSend"]["errors"] != null &&
-            data["data"]["lnInvoicePaymentSend"]["errors"].length > 0) {
+        if (data["data"]["lnInvoicePaymentSend"]["errors"] != null && data["data"]["lnInvoicePaymentSend"]["errors"].length > 0) {
           _status = data["data"]["lnInvoicePaymentSend"]["errors"][0]["message"];
         } else {
           _status = data["data"]["lnInvoicePaymentSend"]["status"];
@@ -338,13 +300,28 @@ class WalletProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> payInvoiceWithFeeConfirmation(String paymentRequest, Future<bool> Function(double fee) confirmCallback) async {
+    double? fee = await probeInvoiceFee(paymentRequest);
+    if (fee == null) {
+      _status = "Invoice fee could not be retrieved.";
+      notifyListeners();
+      return;
+    }
+    bool confirmed = await confirmCallback(fee);
+    if (confirmed) {
+      await payInvoice(paymentRequest);
+    } else {
+      _status = "Payment canceled.";
+      notifyListeners();
+    }
+  }
+
   Future<void> payLnurl(String lnurl, int amountSatoshis) async {
     if (_authToken == null) {
       _status = "Not authenticated.";
       notifyListeners();
       return;
     }
-
     final query = """
     mutation LnurlPaymentSend(\$input: LnurlPaymentSendInput!) {
       lnurlPaymentSend(input: \$input) {
@@ -357,32 +334,18 @@ class WalletProvider extends ChangeNotifier {
       }
     }
     """;
-
     final walletId = await getWalletId();
     if (walletId == null) {
       _status = "BTC wallet not found.";
       notifyListeners();
       return;
     }
-
-    final variables = {
-      "input": {"walletId": walletId, "amount": amountSatoshis, "lnurl": lnurl}
-    };
-
+    final variables = {"input": {"walletId": walletId, "amount": amountSatoshis, "lnurl": lnurl}};
     try {
-      final response = await http.post(
-        Uri.parse(_apiUrl),
-        headers: {
-          "Content-Type": "application/json",
-          "X-API-KEY": _authToken!,
-        },
-        body: jsonEncode({"query": query, "variables": variables}),
-      );
-
+      final response = await http.post(Uri.parse(_apiUrl), headers: {"Content-Type": "application/json", "X-API-KEY": _authToken!}, body: jsonEncode({"query": query, "variables": variables}));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        if (data["data"]["lnurlPaymentSend"]["errors"] != null &&
-            data["data"]["lnurlPaymentSend"]["errors"].length > 0) {
+        if (data["data"]["lnurlPaymentSend"]["errors"] != null && data["data"]["lnurlPaymentSend"]["errors"].length > 0) {
           _status = data["data"]["lnurlPaymentSend"]["errors"][0]["message"];
         } else {
           _status = data["data"]["lnurlPaymentSend"]["status"];
@@ -400,7 +363,6 @@ class WalletProvider extends ChangeNotifier {
     if (_authToken == null) {
       return [];
     }
-
     final query = """
     query PaymentsWithProof(\$first: Int) {
       me {
@@ -422,25 +384,13 @@ class WalletProvider extends ChangeNotifier {
       }
     }
     """;
-
     final variables = {"first": count};
-
     try {
-      final response = await http.post(
-        Uri.parse(_apiUrl),
-        headers: {
-          "Content-Type": "application/json",
-          "X-API-KEY": _authToken!,
-        },
-        body: jsonEncode({"query": query, "variables": variables}),
-      );
-
+      final response = await http.post(Uri.parse(_apiUrl), headers: {"Content-Type": "application/json", "X-API-KEY": _authToken!}, body: jsonEncode({"query": query, "variables": variables}));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final List<dynamic> transactions =
-            data["data"]["me"]["defaultAccount"]["transactions"]["edges"];
+        final List<dynamic> transactions = data["data"]["me"]["defaultAccount"]["transactions"]["edges"];
         List<Map<String, dynamic>> txList = [];
-
         for (var tx in transactions) {
           final node = tx["node"];
           final initiationVia = node["initiationVia"];
@@ -489,7 +439,6 @@ class WalletProvider extends ChangeNotifier {
 
   Future<bool> checkPaymentStatus(String paymentRequest) async {
     if (_authToken == null) return false;
-
     final Map<String, dynamic> requestBody = {
       "query": """
         query PaymentsWithProof(\$first: Int) {
@@ -514,23 +463,13 @@ class WalletProvider extends ChangeNotifier {
       """,
       "variables": {"first": 10},
     };
-
     try {
-      final response = await http.post(
-        Uri.parse(_apiUrl),
-        headers: {
-          "Content-Type": "application/json",
-          "X-API-KEY": _authToken!,
-        },
-        body: jsonEncode(requestBody),
-      );
-
+      final response = await http.post(Uri.parse(_apiUrl), headers: {"Content-Type": "application/json", "X-API-KEY": _authToken!}, body: jsonEncode(requestBody));
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
         final transactions = responseData['data']['me']['defaultAccount']['transactions']['edges'];
         for (var transaction in transactions) {
-          if (transaction['node']['initiationVia']['paymentRequest'] == paymentRequest &&
-              transaction['node']['status'] == 'SUCCESS') {
+          if (transaction['node']['initiationVia']['paymentRequest'] == paymentRequest && transaction['node']['status'] == 'SUCCESS') {
             return true;
           }
         }
@@ -575,8 +514,7 @@ class WalletProvider extends ChangeNotifier {
           return _exchangeRateCache[currency];
         }
       }
-      final String apiUrl =
-          'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=$currency';
+      final String apiUrl = 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=$currency';
       final response = await http.get(Uri.parse(apiUrl));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -601,14 +539,12 @@ class WalletProvider extends ChangeNotifier {
       notifyListeners();
       return;
     }
-
     final walletId = await getWalletId();
     if (walletId == null) {
       _onChainAddress = "BTC wallet not found.";
       notifyListeners();
       return;
     }
-
     final query = """
     mutation onChainAddressCreate(\$input: OnChainAddressCreateInput!) {
       onChainAddressCreate(input: \$input) {
@@ -619,26 +555,13 @@ class WalletProvider extends ChangeNotifier {
       }
     }
     """;
-
     final variables = {
-      "input": {
-        "walletId": walletId,
-      }
+      "input": {"walletId": walletId}
     };
-
     try {
-      final response = await http.post(
-        Uri.parse(_apiUrl),
-        headers: {
-          "Content-Type": "application/json",
-          "X-API-KEY": _authToken!,
-        },
-        body: jsonEncode({"query": query, "variables": variables}),
-      );
-
+      final response = await http.post(Uri.parse(_apiUrl), headers: {"Content-Type": "application/json", "X-API-KEY": _authToken!}, body: jsonEncode({"query": query, "variables": variables}));
       print("Status Code: ${response.statusCode}");
       print("Response Body: ${response.body}");
-
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final result = data["data"]["onChainAddressCreate"];
@@ -648,8 +571,7 @@ class WalletProvider extends ChangeNotifier {
           _onChainAddress = result["address"];
         }
       } else {
-        _onChainAddress =
-            "Failed to create on-chain address. Status Code: ${response.statusCode}";
+        _onChainAddress = "Failed to create on-chain address. Status Code: ${response.statusCode}";
       }
     } catch (e) {
       _onChainAddress = "Error: $e";
