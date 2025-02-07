@@ -32,9 +32,9 @@ class _QrScanPageState extends State<QrScanPage> {
   void _onQRViewCreated(QRViewController controller) {
     this.controller = controller;
     controller.scannedDataStream.listen((scanData) {
-      if (!isScanned) {
+      final String scannedText = scanData.code ?? '';
+      if (!isScanned && scannedText.toLowerCase().startsWith('ln')) {
         isScanned = true;
-        final String scannedText = scanData.code ?? '';
         Navigator.pop(context, scannedText);
       }
     });
