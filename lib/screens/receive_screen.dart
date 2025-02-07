@@ -111,10 +111,6 @@ class _InvoicePageState extends State<InvoicePage> {
             : (walletProvider.lightningAddress ?? ''));
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Pay with QR Code'),
-        backgroundColor: AppColors.background,
-      ),
       backgroundColor: AppColors.background,
       body: Padding(
         padding: const EdgeInsets.all(24.0),
