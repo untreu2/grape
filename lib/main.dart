@@ -6,6 +6,7 @@ import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/history_screen.dart';
 import 'screens/onchaindepo.dart';
+import 'screens/receive_screen.dart';
 import 'utils/colors.dart';
 
 void main() {
@@ -109,6 +110,7 @@ class MyApp extends StatelessWidget {
         '/home': (context) => const HomeScreen(),
         '/history': (context) => const HistoryScreen(),
         '/onchain': (context) => const OnChainAddressPage(),
+        '/invoice': (context) => const InvoicePage(),
       },
     );
   }

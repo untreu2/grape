@@ -5,13 +5,11 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import '../wallet_provider.dart';
-import '../pop/show_qr_dialog.dart';
-import '../pop/show_invoice_dialog.dart';
-import '../screens/send_screen.dart';
-import '../screens/history_screen.dart';
-import '../screens/qr_scan_screen.dart';
-import '../utils/colors.dart';
+import 'send_screen.dart';
+import 'history_screen.dart';
+import 'qr_scan_screen.dart';
 import '../pop/drawer.dart';
+import '../utils/colors.dart';
 import '../utils/lnparser.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -420,9 +418,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         Expanded(
                           child: ElevatedButton.icon(
                             onPressed: () {
-                              showInvoiceDialog(context, (invoice) {
-                                showQrDialog(context, invoice);
-                              });
+                              Navigator.pushNamed(context, '/invoice');
                             },
                             icon: const Icon(
                               Icons.arrow_downward,
