@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,7 +15,6 @@ import '../utils/lnparser.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
-
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
@@ -28,12 +28,6 @@ class _HomeScreenState extends State<HomeScreen> {
   static const int satoshiPerBTC = 100000000;
   double? _fiatBalance;
   String _selectedFiatCurrency = 'usd';
-  final Map<String, double> _conversionRates = {
-    'usd': 1.0,
-    'eur': 0.92,
-    'gbp': 0.80,
-    'try': 27.0,
-  };
   final Map<String, String> _currencySymbols = {
     'usd': '\$',
     'eur': '€',
@@ -43,16 +37,18 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Map<String, dynamic>> _lastTransactions = [];
   bool _isTransactionsLoading = true;
   double? _btcPrice;
-
   @override
   void initState() {
     super.initState();
     _loadPreferences();
     _fetchBalance();
     _fetchTransactions();
-    _balanceTimer = Timer.periodic(const Duration(seconds: 1), (timer) => _checkBalanceChange());
-    _transactionsTimer = Timer.periodic(const Duration(seconds: 5), (timer) => _fetchTransactions());
-    _priceTimer = Timer.periodic(const Duration(seconds: 10), (timer) => _updateBtcPrice());
+    _balanceTimer = Timer.periodic(
+        const Duration(seconds: 1), (timer) => _checkBalanceChange());
+    _transactionsTimer = Timer.periodic(
+        const Duration(seconds: 5), (timer) => _fetchTransactions());
+    _priceTimer = Timer.periodic(
+        const Duration(seconds: 10), (timer) => _updateBtcPrice());
     _updateBtcPrice();
   }
 
@@ -70,14 +66,14 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _isLoading = false;
     });
-    _convertBalanceToFiatWithPrice(walletProvider.balance, _selectedFiatCurrency);
+    _convertBalanceToFiatWithPrice(walletProvider.balance);
   }
 
   Future<void> _checkBalanceChange() async {
     final walletProvider = Provider.of<WalletProvider>(context, listen: false);
     await walletProvider.fetchBalance();
     setState(() {});
-    _convertBalanceToFiatWithPrice(walletProvider.balance, _selectedFiatCurrency);
+    _convertBalanceToFiatWithPrice(walletProvider.balance);
   }
 
   Future<void> _fetchTransactions() async {
@@ -97,27 +93,20 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _updateBtcPrice() async {
-    try {
-      final response = await http.get(
-        Uri.parse("https://api.coindesk.com/v1/bpi/currentprice/USD.json"),
-      );
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        double priceUsd = data["bpi"]["USD"]["rate_float"];
-        setState(() {
-          _btcPrice = priceUsd;
-        });
-        final walletProvider = Provider.of<WalletProvider>(context, listen: false);
-        _convertBalanceToFiatWithPrice(walletProvider.balance, _selectedFiatCurrency);
-      } else {
-        print("Failed to fetch BTC price from CoinDesk: ${response.statusCode}");
-      }
-    } catch (e) {
-      print("Failed to fetch BTC price from CoinDesk: $e");
+    final walletProvider = Provider.of<WalletProvider>(context, listen: false);
+    double? price = await walletProvider.convertSatoshisToCurrency(
+        100000000, _selectedFiatCurrency);
+    if (price != null) {
+      setState(() {
+        _btcPrice = price;
+      });
+      _convertBalanceToFiatWithPrice(walletProvider.balance);
+    } else {
+      print("Failed to fetch BTC price from wallet provider");
     }
   }
 
-  void _convertBalanceToFiatWithPrice(String? balance, String currency) {
+  void _convertBalanceToFiatWithPrice(String? balance) {
     if (balance == null || _btcPrice == null) {
       setState(() {
         _fiatBalance = null;
@@ -126,9 +115,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     int satoshis = int.tryParse(balance) ?? 0;
     double btcValue = satoshis / satoshiPerBTC;
-    double conversionRate = _conversionRates[currency] ?? 1.0;
     setState(() {
-      _fiatBalance = btcValue * _btcPrice! * conversionRate;
+      _fiatBalance = btcValue * _btcPrice!;
     });
   }
 
@@ -223,7 +211,8 @@ class _HomeScreenState extends State<HomeScreen> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('selectedFiatCurrency', _selectedFiatCurrency);
     final walletProvider = Provider.of<WalletProvider>(context, listen: false);
-    _convertBalanceToFiatWithPrice(walletProvider.balance, nextCurrency);
+    _updateBtcPrice();
+    _convertBalanceToFiatWithPrice(walletProvider.balance);
   }
 
   Widget _buildTransactionSummary(Map<String, dynamic> tx) {
@@ -235,12 +224,16 @@ class _HomeScreenState extends State<HomeScreen> {
     final String? memo = LightningInvoiceParser.getMemo(invoice);
     String titleText;
     if (settlementAmount >= 0) {
-      titleText = "Received ${parsedAmount ?? settlementAmount} ${((parsedAmount ?? settlementAmount) == 1) ? 'satoshi' : 'satoshis'}";
+      titleText =
+          "Received ${parsedAmount ?? settlementAmount} ${((parsedAmount ?? settlementAmount) == 1) ? 'satoshi' : 'satoshis'}";
     } else {
-      titleText = "Sent ${parsedAmount ?? settlementAmount.abs()} ${((parsedAmount ?? settlementAmount.abs()) == 1) ? 'satoshi' : 'satoshis'}";
+      titleText =
+          "Sent ${parsedAmount ?? settlementAmount.abs()} ${((parsedAmount ?? settlementAmount.abs()) == 1) ? 'satoshi' : 'satoshis'}";
     }
-    Color tileColor = settlementAmount >= 0 ? AppColors.success : AppColors.buttonText;
-    String truncatedInvoice = invoice.length > 10 ? '${invoice.substring(0, 10)}...' : invoice;
+    Color tileColor =
+        settlementAmount >= 0 ? AppColors.success : AppColors.buttonText;
+    String truncatedInvoice =
+        invoice.length > 10 ? '${invoice.substring(0, 10)}...' : invoice;
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       color: tileColor.withOpacity(0.1),
@@ -307,7 +300,6 @@ class _HomeScreenState extends State<HomeScreen> {
         body: Center(child: CircularProgressIndicator()),
       );
     }
-
     return Scaffold(
       drawer: const AppDrawer(),
       appBar: AppBar(
@@ -337,7 +329,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         setState(() {
                           _isBTC = !_isBTC;
                         });
-                        SharedPreferences prefs = await SharedPreferences.getInstance();
+                        SharedPreferences prefs =
+                            await SharedPreferences.getInstance();
                         await prefs.setBool('isBTC', _isBTC);
                       },
                       child: LayoutBuilder(
@@ -379,7 +372,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (context) => const HistoryScreen(),
+                                        builder: (context) =>
+                                            const HistoryScreen(),
                                       ),
                                     );
                                   },
@@ -401,7 +395,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       onPressed: _scanQrCode,
-                      icon: const Icon(Icons.qr_code_scanner, color: AppColors.primaryText),
+                      icon: const Icon(Icons.qr_code_scanner,
+                          color: AppColors.primaryText),
                       label: const Text(
                         'Scan',
                         style: TextStyle(fontSize: 20),
@@ -425,7 +420,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               color: AppColors.primaryText,
                             ),
                             style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 18.0),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 18.0),
                             ),
                             label: const Text(
                               'Receive',
@@ -449,7 +445,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               color: AppColors.primaryText,
                             ),
                             style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 18.0),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 18.0),
                             ),
                             label: const Text(
                               'Send',

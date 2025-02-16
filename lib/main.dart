@@ -13,18 +13,18 @@ void main() {
   runApp(
     ChangeNotifierProvider(
       create: (_) => WalletProvider(),
-      child: const MyApp(),
+      child: const grape(),
     ),
   );
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+class grape extends StatelessWidget {
+  const grape({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Lightning Wallet',
+      title: 'grape',
       theme: ThemeData(
         progressIndicatorTheme: const ProgressIndicatorThemeData(
           color: AppColors.primaryText,
