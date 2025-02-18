@@ -8,7 +8,7 @@ import 'history_screen.dart';
 import 'qr_scan_screen.dart';
 import '../pop/drawer.dart';
 import '../utils/colors.dart';
-import '../utils/lnparser.dart';
+import '../pop/tx.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -42,11 +42,17 @@ class _HomeScreenState extends State<HomeScreen> {
     _fetchBalance();
     _fetchTransactions();
     _balanceTimer = Timer.periodic(
-        const Duration(seconds: 1), (timer) => _checkBalanceChange());
+      const Duration(seconds: 1),
+      (timer) => _checkBalanceChange(),
+    );
     _transactionsTimer = Timer.periodic(
-        const Duration(seconds: 5), (timer) => _fetchTransactions());
+      const Duration(seconds: 5),
+      (timer) => _fetchTransactions(),
+    );
     _priceTimer = Timer.periodic(
-        const Duration(seconds: 10), (timer) => _updateFiatBalance());
+      const Duration(seconds: 10),
+      (timer) => _updateFiatBalance(),
+    );
     _updateFiatBalance();
   }
 
@@ -94,7 +100,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _updateFiatBalance() async {
     final walletProvider = Provider.of<WalletProvider>(context, listen: false);
     double? fiat = await walletProvider.convertSatoshisToCurrency(
-        100000000, _selectedFiatCurrency);
+      100000000,
+      _selectedFiatCurrency,
+    );
     if (fiat != null) {
       final String? balanceStr = walletProvider.balance;
       if (balanceStr != null) {
@@ -169,10 +177,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 )
-              : SizedBox(
+              : const SizedBox(
                   width: 24,
                   height: 24,
-                  child: const CircularProgressIndicator(strokeWidth: 2),
+                  child: CircularProgressIndicator(strokeWidth: 2),
                 ),
           Padding(
             padding: const EdgeInsets.only(top: 4.0),
@@ -202,67 +210,6 @@ class _HomeScreenState extends State<HomeScreen> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('selectedFiatCurrency', _selectedFiatCurrency);
     _updateFiatBalance();
-  }
-
-  Widget _buildTransactionSummary(Map<String, dynamic> tx) {
-    final String invoice = tx["invoice"] as String;
-    final int settlementAmount = tx["settlementAmount"] is int
-        ? tx["settlementAmount"] as int
-        : int.tryParse(tx["settlementAmount"].toString()) ?? 0;
-    final int? parsedAmount = LightningInvoiceParser.getSatoshiAmount(invoice);
-    final String? memo = LightningInvoiceParser.getMemo(invoice);
-    String titleText;
-    if (settlementAmount >= 0) {
-      titleText =
-          "Received ${parsedAmount ?? settlementAmount} ${((parsedAmount ?? settlementAmount) == 1) ? 'satoshi' : 'satoshis'}";
-    } else {
-      titleText =
-          "Sent ${parsedAmount ?? settlementAmount.abs()} ${((parsedAmount ?? settlementAmount.abs()) == 1) ? 'satoshi' : 'satoshis'}";
-    }
-    Color tileColor =
-        settlementAmount >= 0 ? AppColors.success : AppColors.buttonText;
-    String truncatedInvoice =
-        invoice.length > 10 ? '${invoice.substring(0, 10)}...' : invoice;
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      color: tileColor.withOpacity(0.1),
-      shape: RoundedRectangleBorder(
-        side: BorderSide(color: AppColors.border),
-        borderRadius: BorderRadius.circular(8.0),
-      ),
-      child: ListTile(
-        title: Text(
-          titleText,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: AppColors.primaryText,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Payment Request: $truncatedInvoice",
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppColors.secondaryText,
-              ),
-            ),
-            if (memo != null && memo.isNotEmpty)
-              Text(
-                "Memo: $memo",
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.primaryText,
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
   }
 
   Future<void> _scanQrCode() async {
@@ -353,7 +300,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         : Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              _buildTransactionSummary(_lastTransactions.first),
+                              TransferCard(
+                                tx: _lastTransactions.first,
+                                selectedFiatCurrency: _selectedFiatCurrency,
+                                currencySymbols: _currencySymbols,
+                                enableInvoiceCopy: false,
+                              ),
                               Align(
                                 alignment: Alignment.center,
                                 child: TextButton(

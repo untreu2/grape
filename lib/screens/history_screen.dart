@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import '../utils/lnparser.dart';
 import '../utils/colors.dart';
 import '../wallet_provider.dart';
+import '../pop/tx.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({Key? key}) : super(key: key);
@@ -16,6 +15,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
   List<Map<String, dynamic>> _transactions = [];
   bool _isLoading = true;
   String? _errorMessage;
+  final String _selectedFiatCurrency = 'usd';
+  final Map<String, String> _currencySymbols = const {
+    'usd': '\$',
+    'eur': '€',
+    'gbp': '£',
+    'try': '₺',
+  };
 
   @override
   void initState() {
@@ -37,71 +43,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
         _isLoading = false;
       });
     }
-  }
-
-  Widget _buildTransactionTile(Map<String, dynamic> tx, int index) {
-    final String invoice = tx["invoice"] as String;
-    final int settlementAmount = tx["settlementAmount"] is int
-        ? tx["settlementAmount"] as int
-        : int.tryParse(tx["settlementAmount"].toString()) ?? 0;
-    Color tileColor =
-        settlementAmount >= 0 ? AppColors.success : AppColors.buttonText;
-    final String titleText = settlementAmount >= 0 ? "Received" : "Sent";
-    final int? parsedAmount = LightningInvoiceParser.getSatoshiAmount(invoice);
-    final String? memo = LightningInvoiceParser.getMemo(invoice);
-    String truncatedInvoice = invoice.length > 10
-        ? '${invoice.substring(0, 10)}...'
-        : invoice;
-
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: tileColor.withOpacity(0.1),
-      shape: RoundedRectangleBorder(
-        side: BorderSide(color: AppColors.border),
-        borderRadius: BorderRadius.circular(8.0),
-      ),
-      child: ListTile(
-        title: Text(
-          titleText,
-          style: const TextStyle(color: AppColors.primaryText),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            GestureDetector(
-              onTap: () {
-                Clipboard.setData(ClipboardData(text: invoice));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Invoice copied.")),
-                );
-              },
-              child: Text(
-                "Payment Request: $truncatedInvoice",
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.secondaryText,
-                  decoration: TextDecoration.underline,
-                ),
-              ),
-            ),
-            const SizedBox(height: 4),
-            if (parsedAmount != null)
-Text(
-  "Amount: $parsedAmount ${parsedAmount == 1 ? 'satoshi' : 'satoshis'}",
-  style: const TextStyle(color: AppColors.primaryText),
-),
-
-            if (memo != null && memo.isNotEmpty)
-              Text(
-                "Memo: $memo",
-                style: const TextStyle(color: AppColors.primaryText),
-              ),
-          ],
-        ),
-      ),
-    );
   }
 
   @override
@@ -136,7 +77,12 @@ Text(
                       itemCount: _transactions.length,
                       itemBuilder: (context, index) {
                         final tx = _transactions[index];
-                        return _buildTransactionTile(tx, index);
+                        return TransferCard(
+                          tx: tx,
+                          selectedFiatCurrency: _selectedFiatCurrency,
+                          currencySymbols: _currencySymbols,
+                          enableInvoiceCopy: true,
+                        );
                       },
                     ),
     );
