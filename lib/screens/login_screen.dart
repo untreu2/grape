@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
-import 'package:url_launcher/url_launcher.dart'; 
+import 'package:url_launcher/url_launcher.dart';
 import '../wallet_provider.dart';
-import '../utils/colors.dart'; 
+import '../utils/colors.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   _LoginScreenState createState() => _LoginScreenState();
@@ -19,13 +19,12 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   String? _error;
 
-  
   final FocusNode _apiKeyFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       FocusScope.of(context).requestFocus(_apiKeyFocusNode);
     });
@@ -34,7 +33,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void dispose() {
     _apiKeyController.dispose();
-    _apiKeyFocusNode.dispose(); 
+    _apiKeyFocusNode.dispose();
     super.dispose();
   }
 
@@ -73,7 +72,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  
   Future<void> _launchAPIKeyPage() async {
     final Uri url = Uri.parse('https://dashboard.blink.sv/api-keys');
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
@@ -86,16 +84,15 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.loginBackground, 
+      backgroundColor: AppColors.loginBackground,
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Center( 
-          child: SingleChildScrollView( 
+        child: Center(
+          child: SingleChildScrollView(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                
                 AnimatedTextKit(
                   animatedTexts: [
                     TyperAnimatedText(
@@ -103,7 +100,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       textStyle: TextStyle(
                         fontSize: 50.0,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.loginText, 
+                        color: AppColors.loginText,
                         letterSpacing: 4.0,
                       ),
                       speed: const Duration(milliseconds: 200),
@@ -117,24 +114,26 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: Theme.of(context)
                       .textTheme
                       .titleLarge!
-                      .copyWith(color: AppColors.loginText), 
+                      .copyWith(color: AppColors.loginText),
                 ),
                 const SizedBox(height: 20),
                 Form(
                   key: _formKey,
                   child: TextFormField(
                     controller: _apiKeyController,
-                    focusNode: _apiKeyFocusNode, 
-                    style: TextStyle(color: AppColors.loginText), 
+                    focusNode: _apiKeyFocusNode,
+                    style: TextStyle(color: AppColors.loginText),
                     decoration: InputDecoration(
                       labelText: 'API Key',
-                      labelStyle: TextStyle(color: AppColors.loginText), 
+                      labelStyle: TextStyle(color: AppColors.loginText),
                       border: const OutlineInputBorder(),
                       enabledBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: AppColors.loginInputBorder), 
+                        borderSide:
+                            BorderSide(color: AppColors.loginInputBorder),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: AppColors.loginInputBorder), 
+                        borderSide:
+                            BorderSide(color: AppColors.loginInputBorder),
                       ),
                     ),
                     obscureText: true,
@@ -150,20 +149,20 @@ class _LoginScreenState extends State<LoginScreen> {
                 if (_error != null)
                   Text(
                     _error!,
-                    style: TextStyle(color: AppColors.loginErrorText), 
+                    style: TextStyle(color: AppColors.loginErrorText),
                   ),
                 const SizedBox(height: 20),
                 _isLoading
                     ? const SpinKitFadingCircle(
-                        color: AppColors.loginText, 
+                        color: AppColors.loginText,
                         size: 50.0,
                       )
                     : ElevatedButton(
                         onPressed: _login,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.loginButtonBackground, 
-                          minimumSize: const Size(double.infinity, 50), 
-                          padding: const EdgeInsets.symmetric(vertical: 15), 
+                          backgroundColor: AppColors.loginButtonBackground,
+                          minimumSize: const Size(double.infinity, 50),
+                          padding: const EdgeInsets.symmetric(vertical: 15),
                           textStyle: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -172,11 +171,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Text(
                           'Login',
                           style: TextStyle(
-                            color: AppColors.loginButtonText, 
+                            color: AppColors.loginButtonText,
                           ),
                         ),
                       ),
-                const SizedBox(height: 10), 
+                const SizedBox(height: 10),
                 TextButton(
                   onPressed: _launchAPIKeyPage,
                   style: TextButton.styleFrom(
@@ -185,7 +184,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Text(
                     'Get your API Key',
                     style: TextStyle(
-                      color: AppColors.primaryText, 
+                      color: AppColors.primaryText,
                       fontSize: 16,
                     ),
                   ),

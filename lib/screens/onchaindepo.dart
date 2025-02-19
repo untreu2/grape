@@ -6,7 +6,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../wallet_provider.dart';
 
 class OnChainAddressPage extends StatefulWidget {
-  const OnChainAddressPage({Key? key}) : super(key: key);
+  const OnChainAddressPage({super.key});
 
   @override
   _OnChainAddressPageState createState() => _OnChainAddressPageState();

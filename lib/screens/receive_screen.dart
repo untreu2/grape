@@ -7,7 +7,7 @@ import '../wallet_provider.dart';
 import '../utils/colors.dart';
 
 class InvoicePage extends StatefulWidget {
-  const InvoicePage({Key? key}) : super(key: key);
+  const InvoicePage({super.key});
 
   @override
   _InvoicePageState createState() => _InvoicePageState();
@@ -119,8 +119,7 @@ class _InvoicePageState extends State<InvoicePage> {
             Center(
               child: Container(
                 decoration: BoxDecoration(
-                  border: Border.all(
-                      color: AppColors.dialogBorder, width: 2.0),
+                  border: Border.all(color: AppColors.dialogBorder, width: 2.0),
                   borderRadius: BorderRadius.circular(12.0),
                 ),
                 padding: const EdgeInsets.all(8.0),
@@ -184,8 +183,7 @@ class _InvoicePageState extends State<InvoicePage> {
                   color: AppColors.dialogText,
                 ),
               ),
-              style: TextStyle(
-                  color: AppColors.dialogText, fontSize: 16.0),
+              style: TextStyle(color: AppColors.dialogText, fontSize: 16.0),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -204,11 +202,9 @@ class _InvoicePageState extends State<InvoicePage> {
                   borderRadius: BorderRadius.circular(8.0),
                   borderSide: BorderSide(color: AppColors.border),
                 ),
-                prefixIcon:
-                    Icon(Icons.note, color: AppColors.dialogText),
+                prefixIcon: Icon(Icons.note, color: AppColors.dialogText),
               ),
-              style: TextStyle(
-                  color: AppColors.dialogText, fontSize: 16.0),
+              style: TextStyle(color: AppColors.dialogText, fontSize: 16.0),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
@@ -223,8 +219,7 @@ class _InvoicePageState extends State<InvoicePage> {
                   );
                 }
               },
-              icon: Icon(Icons.copy,
-                  color: AppColors.dialogButtonText),
+              icon: Icon(Icons.copy, color: AppColors.dialogButtonText),
               label: const Text('Copy'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.dialogButtonBackground,

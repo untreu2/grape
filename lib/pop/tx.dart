@@ -12,12 +12,12 @@ class TransferCard extends StatefulWidget {
   final bool enableInvoiceCopy;
 
   const TransferCard({
-    Key? key,
+    super.key,
     required this.tx,
     required this.selectedFiatCurrency,
     required this.currencySymbols,
     this.enableInvoiceCopy = false,
-  }) : super(key: key);
+  });
 
   @override
   _TransferCardState createState() => _TransferCardState();

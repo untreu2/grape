@@ -13,18 +13,18 @@ void main() {
   runApp(
     ChangeNotifierProvider(
       create: (_) => WalletProvider(),
-      child: const grape(),
+      child: const Grape(),
     ),
   );
 }
 
-class grape extends StatelessWidget {
-  const grape({Key? key}) : super(key: key);
+class Grape extends StatelessWidget {
+  const Grape({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'grape',
+      title: 'Grape',
       theme: ThemeData(
         progressIndicatorTheme: const ProgressIndicatorThemeData(
           color: AppColors.primaryText,

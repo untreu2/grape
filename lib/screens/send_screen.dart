@@ -8,7 +8,7 @@ import '../utils/colors.dart';
 class SendScreen extends StatefulWidget {
   final String? preFilledData;
 
-  const SendScreen({Key? key, this.preFilledData}) : super(key: key);
+  const SendScreen({super.key, this.preFilledData});
 
   @override
   _SendScreenState createState() => _SendScreenState();
