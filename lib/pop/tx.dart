@@ -85,8 +85,7 @@ class _TransferCardState extends State<TransferCard> {
     } else {
       titleText = "Sent $amount ${amount == 1 ? 'satoshi' : 'satoshis'}";
     }
-    Color tileColor =
-        settlementAmount >= 0 ? AppColors.success : AppColors.buttonText;
+    Color tileColor = AppColors.buttonText;
 
     String truncatedInvoice =
         invoice.length > 10 ? '${invoice.substring(0, 10)}...' : invoice;
