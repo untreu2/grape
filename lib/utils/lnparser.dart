@@ -7,7 +7,7 @@ class LightningInvoiceParser {
       print('Parsing invoice: $invoice');
       final decoded = Bech32Codec().decode(invoice, invoice.length);
       print('Bech32 decoded: $decoded');
-      
+
       final humanReadablePart = decoded.hrp;
       print('Human Readable Part: $humanReadablePart');
 
@@ -73,11 +73,10 @@ class LightningInvoiceParser {
   static String? getMemo(String invoice) {
     try {
       print('Parsing memo from invoice: $invoice');
-      
+
       var req = Bolt11PaymentRequest(invoice);
-      var description = req.tags
-          .firstWhere((tag) => tag.type == 'description')
-          .data;
+      var description =
+          req.tags.firstWhere((tag) => tag.type == 'description').data;
 
       print('Extracted Memo: $description');
       return description;

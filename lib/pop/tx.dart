@@ -137,19 +137,21 @@ class _TransferCardState extends State<TransferCard> {
                 child: Text(
                   "Memo: $memo",
                   style: const TextStyle(
-                      fontSize: 12, color: AppColors.primaryText),
+                    fontSize: 12,
+                    color: AppColors.primaryText,
+                  ),
                 ),
               ),
           ],
         ),
         trailing: Text(
           _fiatValue != null
-              ? "$fiatSymbol${_fiatValue!.toStringAsFixed(2)}"
+              ? "≈$fiatSymbol${_fiatValue!.toStringAsFixed(2)}"
               : "N/A",
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: AppColors.success,
+            color: settlementAmount >= 0 ? Colors.green : Colors.red,
           ),
         ),
       ),
