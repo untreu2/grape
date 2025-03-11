@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../wallet_provider.dart';
 import 'send_screen.dart';
 import 'history_screen.dart';
-import 'qr_scan_screen.dart';
 import '../pop/drawer.dart';
 import '../utils/colors.dart';
 import '../pop/tx.dart';
@@ -212,21 +211,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _updateFiatBalance();
   }
 
-  Future<void> _scanQrCode() async {
-    final scannedData = await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const QrScanPage()),
-    );
-    if (scannedData != null && scannedData is String) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => SendScreen(preFilledData: scannedData),
-        ),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final walletProvider = Provider.of<WalletProvider>(context);
@@ -332,21 +316,6 @@ class _HomeScreenState extends State<HomeScreen> {
               const Spacer(flex: 3),
               Column(
                 children: [
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _scanQrCode,
-                      icon: const Icon(Icons.qr_code_scanner,
-                          color: AppColors.primaryText),
-                      label: const Text(
-                        'Scan',
-                        style: TextStyle(fontSize: 20),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 18.0),
-                      ),
-                    ),
-                  ),
                   Container(
                     margin: const EdgeInsets.only(top: 20.0),
                     child: Row(
