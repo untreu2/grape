@@ -116,7 +116,7 @@ class _SendScreenState extends State<SendScreen> {
           });
           return;
         }
-        await walletProvider.payLnurl(lnurl, amount, _memo!);
+        await walletProvider.payLnurl(lnurl, amount);
       }
       if (walletProvider.status != null) {
         ScaffoldMessenger.of(context).showSnackBar(
