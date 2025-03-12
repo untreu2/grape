@@ -35,7 +35,7 @@ class _OnChainAddressPageState extends State<OnChainAddressPage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Text(
-                          "5.000 sats fees for on-chain payment below 1.000.000 sats",
+                          "5.000 sats fees for on-chain payments below 1.000.000 sats",
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
