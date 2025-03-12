@@ -66,8 +66,9 @@ class _OnChainAddressPageState extends State<OnChainAddressPage> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.buttonBackground,
                             foregroundColor: AppColors.buttonText,
+                            minimumSize: const Size(double.infinity, 50),
                             padding: const EdgeInsets.symmetric(
-                                vertical: 16, horizontal: 125),
+                                vertical: 16, horizontal: 16),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30),
                             ),
