@@ -361,23 +361,23 @@ class WalletProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> payLnurl(String lnurl, int amountSatoshis) async {
+  Future<void> payLnurl(String lnurl, int amountSatoshis, String memo) async {
     if (_authToken == null) {
       _status = "Not authenticated.";
       notifyListeners();
       return;
     }
     final query = """
-    mutation LnurlPaymentSend(\$input: LnurlPaymentSendInput!) {
-      lnurlPaymentSend(input: \$input) {
-        status
-        errors {
-          code
-          message
-          path
+      mutation LnurlPaymentSend(\$input: LnurlPaymentSendInput!) {
+        lnurlPaymentSend(input: \$input) {
+          status
+          errors {
+            code
+            message
+            path
+          }
         }
       }
-    }
     """;
     final walletId = await getWalletId();
     if (walletId == null) {
@@ -386,7 +386,12 @@ class WalletProvider extends ChangeNotifier {
       return;
     }
     final variables = {
-      "input": {"walletId": walletId, "amount": amountSatoshis, "lnurl": lnurl}
+      "input": {
+        "walletId": walletId,
+        "amount": amountSatoshis,
+        "lnurl": lnurl,
+        "memo": memo.isNotEmpty ? memo : null,
+      }
     };
     try {
       final response = await http.post(Uri.parse(_apiUrl),
