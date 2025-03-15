@@ -412,6 +412,87 @@ class WalletProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<String> createLnInvoiceFromLnurl(
+      String lnurl, int amountSatoshis, String memo) async {
+    int msat = amountSatoshis * 1000;
+    String lnurlp;
+    if (lnurl.contains('@')) {
+      var parts = lnurl.split('@');
+      if (parts.length != 2)
+        throw Exception("Invalid lightning address format");
+      String user = parts[0];
+      String domain = parts[1];
+      lnurlp = "https://$domain/.well-known/lnurlp/$user";
+    } else {
+      lnurlp = lnurl;
+    }
+    final res = await http.get(Uri.parse(lnurlp));
+    if (res.statusCode != 200) {
+      throw Exception("Could not fetch LNURL-pay info: ${res.statusCode}");
+    }
+    final lnurlData = jsonDecode(res.body);
+    int minSendable = lnurlData["minSendable"] ?? 0;
+    int maxSendable = lnurlData["maxSendable"] ?? 0;
+    if (msat < minSendable || msat > maxSendable) {
+      throw Exception(
+          "Amount out of range. Minimum ${minSendable ~/ 1000} and maximum ${maxSendable ~/ 1000} satoshis allowed.");
+    }
+    String callbackUrl = lnurlData["callback"];
+    if (callbackUrl.isEmpty) {
+      throw Exception("LNURL-pay info does not contain a callback URL");
+    }
+    var callbackUri = Uri.parse(callbackUrl);
+    var queryParameters = Map<String, String>.from(callbackUri.queryParameters);
+    queryParameters["amount"] = msat.toString();
+    int commentAllowed = lnurlData["commentAllowed"] ?? 0;
+    if (memo.isNotEmpty) {
+      if (commentAllowed > 0 && memo.length > commentAllowed) {
+        memo = memo.substring(0, commentAllowed);
+      }
+      queryParameters["comment"] = memo;
+    }
+    var newUri = callbackUri.replace(queryParameters: queryParameters);
+    final invoiceRes = await http.get(newUri);
+    if (invoiceRes.statusCode != 200) {
+      throw Exception("Failed to fetch invoice: ${invoiceRes.statusCode}");
+    }
+    final invoiceData = jsonDecode(invoiceRes.body);
+    if (invoiceData["status"] != null &&
+        invoiceData["status"].toString().toLowerCase() == "error") {
+      throw Exception(
+          "Invoice error: ${invoiceData["reason"] ?? "Unknown error"}");
+    }
+    String invoice = invoiceData["pr"];
+    if (invoice.isEmpty) {
+      throw Exception("No invoice found in response");
+    }
+    return invoice;
+  }
+
+  Future<void> createAndPayLnurlInvoice(String lnurl, int amountSatoshis,
+      String memo, Future<bool> Function(double fee) confirmCallback) async {
+    try {
+      String lnInvoice =
+          await createLnInvoiceFromLnurl(lnurl, amountSatoshis, memo);
+      double? fee = await probeInvoiceFee(lnInvoice);
+      if (fee == null) {
+        _status = "Invoice fee could not be fetched.";
+        notifyListeners();
+        return;
+      }
+      bool confirmed = await confirmCallback(fee);
+      if (confirmed) {
+        await payInvoice(lnInvoice);
+      } else {
+        _status = "Payment canceled.";
+        notifyListeners();
+      }
+    } catch (e) {
+      _status = "Error creating LN invoice: $e";
+      notifyListeners();
+    }
+  }
+
   Future<List<Map<String, dynamic>>> getHistory(int count) async {
     if (_authToken == null) {
       return [];

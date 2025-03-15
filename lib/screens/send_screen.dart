@@ -19,6 +19,7 @@ class _SendScreenState extends State<SendScreen> {
   final _invoiceController = TextEditingController();
   final _lnurlController = TextEditingController();
   final _amountController = TextEditingController();
+  final _memoController = TextEditingController();
   String _paymentMethod = 'invoice';
   int? _requestedAmount;
   String? _memo;
@@ -60,9 +61,40 @@ class _SendScreenState extends State<SendScreen> {
     _invoiceController.dispose();
     _lnurlController.dispose();
     _amountController.dispose();
+    _memoController.dispose();
     _invoiceFocusNode.dispose();
     _lnurlFocusNode.dispose();
     super.dispose();
+  }
+
+  Future<bool> _confirmFee(double fee) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: AppColors.dialogBackground,
+            title: Text(
+              "Confirm Payment",
+              style: TextStyle(color: AppColors.primaryText),
+            ),
+            content: Text(
+              "Fee: ${fee.toStringAsFixed(0)} sats\nProceed with payment?",
+              style: TextStyle(color: AppColors.secondaryText),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child:
+                    Text("No", style: TextStyle(color: AppColors.buttonText)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child:
+                    Text("Yes", style: TextStyle(color: AppColors.buttonText)),
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 
   Future<void> _fetchInvoiceDetails() async {
@@ -116,7 +148,14 @@ class _SendScreenState extends State<SendScreen> {
           });
           return;
         }
-        await walletProvider.payLnurl(lnurl, amount);
+        String memo = _memoController.text.trim();
+        if (memo.isEmpty) memo = "Sent from Grape!";
+        await walletProvider.createAndPayLnurlInvoice(
+          lnurl,
+          amount,
+          memo,
+          _confirmFee,
+        );
       }
       if (walletProvider.status != null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -200,6 +239,7 @@ class _SendScreenState extends State<SendScreen> {
                             _invoiceController.clear();
                             _lnurlController.clear();
                             _amountController.clear();
+                            _memoController.clear();
                             _requestedAmount = null;
                             _memo = null;
                             _fee = null;
@@ -293,6 +333,35 @@ class _SendScreenState extends State<SendScreen> {
                                   keyboardType: TextInputType.number,
                                   decoration: InputDecoration(
                                     labelText: 'Amount (sats)',
+                                    labelStyle:
+                                        TextStyle(color: AppColors.primaryText),
+                                    border: const OutlineInputBorder(),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderSide:
+                                          BorderSide(color: AppColors.border),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderSide:
+                                          BorderSide(color: AppColors.border),
+                                    ),
+                                  ),
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return 'Please enter an amount';
+                                    }
+                                    if (int.tryParse(value) == null ||
+                                        int.parse(value) <= 0) {
+                                      return 'Enter a valid amount';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                const SizedBox(height: 10),
+                                TextFormField(
+                                  controller: _memoController,
+                                  decoration: InputDecoration(
+                                    labelText: 'Memo (optional)',
+                                    hintText: 'Sent from Grape!',
                                     labelStyle:
                                         TextStyle(color: AppColors.primaryText),
                                     border: const OutlineInputBorder(),
