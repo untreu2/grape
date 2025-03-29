@@ -286,7 +286,6 @@ class _HomeScreenState extends State<HomeScreen> {
                             children: [
                               TransferCard(
                                 tx: _lastTransactions.first,
-                                selectedFiatCurrency: _selectedFiatCurrency,
                                 currencySymbols: _currencySymbols,
                                 enableInvoiceCopy: false,
                               ),

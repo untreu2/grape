@@ -1,20 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/lnparser.dart';
 import '../utils/colors.dart';
 import '../wallet_provider.dart';
 
 class TransferCard extends StatefulWidget {
   final Map<String, dynamic> tx;
-  final String selectedFiatCurrency;
   final Map<String, String> currencySymbols;
   final bool enableInvoiceCopy;
 
   const TransferCard({
     super.key,
     required this.tx,
-    required this.selectedFiatCurrency,
     required this.currencySymbols,
     this.enableInvoiceCopy = false,
   });
@@ -25,20 +24,28 @@ class TransferCard extends StatefulWidget {
 
 class _TransferCardState extends State<TransferCard> {
   double? _fiatValue;
+  String _selectedFiatCurrency = 'usd';
 
   @override
   void initState() {
     super.initState();
+    _loadCurrencyPreference();
     _fetchFiatValue();
   }
 
   @override
   void didUpdateWidget(covariant TransferCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.selectedFiatCurrency != oldWidget.selectedFiatCurrency ||
-        widget.tx != oldWidget.tx) {
+    if (widget.tx != oldWidget.tx) {
       _fetchFiatValue();
     }
+  }
+
+  Future<void> _loadCurrencyPreference() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _selectedFiatCurrency = prefs.getString('selectedFiatCurrency') ?? 'usd';
+    });
   }
 
   Future<void> _fetchFiatValue() async {
@@ -52,7 +59,7 @@ class _TransferCardState extends State<TransferCard> {
 
     try {
       double? newValue = await walletProvider.convertSatoshisToCurrency(
-          amount, widget.selectedFiatCurrency);
+          amount, _selectedFiatCurrency);
       if (newValue != null && newValue != _fiatValue) {
         setState(() {
           _fiatValue = newValue;
@@ -77,7 +84,7 @@ class _TransferCardState extends State<TransferCard> {
     final String? memo = LightningInvoiceParser.getMemo(invoice);
     final int amount = parsedAmount ?? settlementAmount.abs();
     final String fiatSymbol =
-        widget.currencySymbols[widget.selectedFiatCurrency] ?? '';
+        widget.currencySymbols[_selectedFiatCurrency] ?? '';
 
     String titleText;
     if (settlementAmount >= 0) {
