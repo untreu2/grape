@@ -167,6 +167,8 @@ class _InvoicePageState extends State<InvoicePage> {
               decoration: InputDecoration(
                 labelText: 'Amount (Optional)',
                 labelStyle: TextStyle(color: AppColors.dialogText),
+                filled: true,
+                fillColor: AppColors.buttonBackground,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8.0),
                 ),
@@ -191,6 +193,8 @@ class _InvoicePageState extends State<InvoicePage> {
               decoration: InputDecoration(
                 labelText: 'Memo (Optional)',
                 labelStyle: TextStyle(color: AppColors.dialogText),
+                filled: true,
+                fillColor: AppColors.buttonBackground,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8.0),
                 ),

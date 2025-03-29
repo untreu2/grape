@@ -53,6 +53,7 @@ dependencies:
   bolt11_decoder: ^1.0.2
   dart_bech32: ^2.0.0
   auto_size_text: ^3.0.0
+  animated_flip_counter: ^0.3.4
 
 dev_dependencies:
   flutter_test:

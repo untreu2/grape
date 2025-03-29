@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:animated_flip_counter/animated_flip_counter.dart';
 import '../wallet_provider.dart';
 import 'send_screen.dart';
 import 'history_screen.dart';
@@ -126,15 +127,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _transactionsTimer?.cancel();
     _priceTimer?.cancel();
     super.dispose();
-  }
-
-  String formatBalance(String? balance) {
-    if (_isBTC) {
-      double btcValue = (double.tryParse(balance ?? '0') ?? 0) / satoshiPerBTC;
-      return btcValue.toStringAsFixed(8);
-    } else {
-      return balance ?? '0';
-    }
   }
 
   String getBalanceLabel(String? balance) {
@@ -263,11 +255,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       },
                       child: LayoutBuilder(
                         builder: (context, constraints) {
+                          double balanceNum =
+                              double.tryParse(balance ?? '0') ?? 0;
+                          double displayBalance =
+                              _isBTC ? balanceNum / satoshiPerBTC : balanceNum;
                           return FittedBox(
                             fit: BoxFit.scaleDown,
-                            child: Text(
-                              formatBalance(balance),
-                              style: TextStyle(
+                            child: AnimatedFlipCounter(
+                              duration: const Duration(milliseconds: 500),
+                              value: displayBalance,
+                              fractionDigits: _isBTC ? 8 : 0,
+                              textStyle: TextStyle(
                                 fontSize: 64,
                                 fontWeight: FontWeight.bold,
                                 color: cryptoBalanceColor,
