@@ -282,6 +282,8 @@ class _SendScreenState extends State<SendScreen> {
                                 labelText: 'Lightning Invoice',
                                 labelStyle:
                                     TextStyle(color: AppColors.primaryText),
+                                filled: true,
+                                fillColor: AppColors.buttonBackground,
                                 border: const OutlineInputBorder(),
                                 enabledBorder: OutlineInputBorder(
                                   borderSide:
@@ -310,6 +312,8 @@ class _SendScreenState extends State<SendScreen> {
                                         'LN Address (e.g. someone@domain.com)',
                                     labelStyle:
                                         TextStyle(color: AppColors.primaryText),
+                                    filled: true,
+                                    fillColor: AppColors.buttonBackground,
                                     border: const OutlineInputBorder(),
                                     enabledBorder: OutlineInputBorder(
                                       borderSide:
@@ -335,6 +339,8 @@ class _SendScreenState extends State<SendScreen> {
                                     labelText: 'Amount (sats)',
                                     labelStyle:
                                         TextStyle(color: AppColors.primaryText),
+                                    filled: true,
+                                    fillColor: AppColors.buttonBackground,
                                     border: const OutlineInputBorder(),
                                     enabledBorder: OutlineInputBorder(
                                       borderSide:
@@ -364,6 +370,8 @@ class _SendScreenState extends State<SendScreen> {
                                     hintText: 'Sent from Grape!',
                                     labelStyle:
                                         TextStyle(color: AppColors.primaryText),
+                                    filled: true,
+                                    fillColor: AppColors.buttonBackground,
                                     border: const OutlineInputBorder(),
                                     enabledBorder: OutlineInputBorder(
                                       borderSide:

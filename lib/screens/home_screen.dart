@@ -157,12 +157,19 @@ class _HomeScreenState extends State<HomeScreen> {
       },
       child: Text(
         getBalanceLabel(balance),
-        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        style: const TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: AppColors.primaryText,
+        ),
       ),
     );
   }
 
   Widget _buildFiatBalance() {
+    final Color fiatBalanceColor = _fiatBalance != null && _fiatBalance! >= 0
+        ? AppColors.currencypositive
+        : AppColors.currencynegative;
     return GestureDetector(
       onTap: _toggleFiatCurrency,
       child: Column(
@@ -170,9 +177,9 @@ class _HomeScreenState extends State<HomeScreen> {
           _fiatBalance != null
               ? Text(
                   '${_currencySymbols[_selectedFiatCurrency]!}${_fiatBalance!.toStringAsFixed(2)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 24,
-                    color: AppColors.success,
+                    color: fiatBalanceColor,
                     fontWeight: FontWeight.bold,
                   ),
                 )
@@ -185,9 +192,9 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.only(top: 4.0),
             child: Text(
               _selectedFiatCurrency.toUpperCase(),
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
-                color: AppColors.success,
+                color: fiatBalanceColor,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -220,6 +227,7 @@ class _HomeScreenState extends State<HomeScreen> {
         body: Center(child: CircularProgressIndicator()),
       );
     }
+    final Color cryptoBalanceColor = AppColors.primaryText;
     return Scaffold(
       drawer: const AppDrawer(),
       appBar: AppBar(
@@ -259,9 +267,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             fit: BoxFit.scaleDown,
                             child: Text(
                               formatBalance(balance),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 64,
                                 fontWeight: FontWeight.bold,
+                                color: cryptoBalanceColor,
                               ),
                             ),
                           );

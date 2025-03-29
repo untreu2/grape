@@ -158,7 +158,9 @@ class _TransferCardState extends State<TransferCard> {
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: settlementAmount >= 0 ? Colors.green : Colors.red,
+            color: settlementAmount >= 0
+                ? AppColors.currencypositive
+                : AppColors.currencynegative,
           ),
         ),
       ),
