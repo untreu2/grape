@@ -4,25 +4,34 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:bech32/bech32.dart';
 
 class WalletProvider extends ChangeNotifier {
   final String _apiUrl = "https://api.blink.sv/graphql";
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+
   String? _balance;
   String? get balance => _balance;
+
   String? _invoice;
   String? get invoice => _invoice;
+
   String? _status;
   String? get status => _status;
+
   bool _paymentSuccessful = false;
   bool get paymentSuccessful => _paymentSuccessful;
+
   Timer? _paymentTimer;
   String? _authToken;
+
   final Map<String, double> _exchangeRateCache = {};
   final Map<String, DateTime> _exchangeRateTimestamp = {};
   final Duration _cacheDuration = Duration(minutes: 5);
+
   String? _lightningAddress;
   String? get lightningAddress => _lightningAddress;
+
   String? _onChainAddress;
   String? get onChainAddress => _onChainAddress;
 
@@ -361,57 +370,6 @@ class WalletProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> payLnurl(String lnurl, int amountSatoshis) async {
-    if (_authToken == null) {
-      _status = "Not authenticated.";
-      notifyListeners();
-      return;
-    }
-    final query = """
-    mutation LnurlPaymentSend(\$input: LnurlPaymentSendInput!) {
-      lnurlPaymentSend(input: \$input) {
-        status
-        errors {
-          code
-          message
-          path
-        }
-      }
-    }
-    """;
-    final walletId = await getWalletId();
-    if (walletId == null) {
-      _status = "BTC wallet not found.";
-      notifyListeners();
-      return;
-    }
-    final variables = {
-      "input": {"walletId": walletId, "amount": amountSatoshis, "lnurl": lnurl}
-    };
-    try {
-      final response = await http.post(Uri.parse(_apiUrl),
-          headers: {
-            "Content-Type": "application/json",
-            "X-API-KEY": _authToken!
-          },
-          body: jsonEncode({"query": query, "variables": variables}));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data["data"]["lnurlPaymentSend"]["errors"] != null &&
-            data["data"]["lnurlPaymentSend"]["errors"].length > 0) {
-          _status = data["data"]["lnurlPaymentSend"]["errors"][0]["message"];
-        } else {
-          _status = data["data"]["lnurlPaymentSend"]["status"];
-        }
-      } else {
-        _status = "Failed to send LNURL payment.";
-      }
-    } catch (e) {
-      _status = "Error: $e";
-    }
-    notifyListeners();
-  }
-
   Future<String> createLnInvoiceFromLnurl(
       String lnurl, int amountSatoshis, String memo) async {
     int msat = amountSatoshis * 1000;
@@ -424,7 +382,7 @@ class WalletProvider extends ChangeNotifier {
       String domain = parts[1];
       lnurlp = "https://$domain/.well-known/lnurlp/$user";
     } else {
-      lnurlp = lnurl;
+      lnurlp = decodeLnurl(lnurl);
     }
     final res = await http.get(Uri.parse(lnurlp));
     if (res.statusCode != 200) {
@@ -780,4 +738,43 @@ class WalletProvider extends ChangeNotifier {
     stopPaymentCheck();
     super.dispose();
   }
+}
+
+String decodeLnurl(String lnurl) {
+  final codec = Bech32Codec();
+  final bech32Obj = codec.decode(lnurl, lnurl.length);
+  final data = bech32Obj.data;
+  final converted = convertBits(data, 5, 8, false);
+  return utf8.decode(converted);
+}
+
+List<int> convertBits(List<int> data, int fromBits, int toBits, bool pad) {
+  int acc = 0;
+  int bits = 0;
+  final int maxv = (1 << toBits) - 1;
+  List<int> result = [];
+  for (var value in data) {
+    if (value < 0 || (value >> fromBits) != 0) {
+      throw Exception("Invalid value in convertBits");
+    }
+    acc = (acc << fromBits) | value;
+    bits += fromBits;
+    while (bits >= toBits) {
+      bits -= toBits;
+      result.add((acc >> bits) & maxv);
+    }
+  }
+  if (pad) {
+    if (bits > 0) {
+      result.add((acc << (toBits - bits)) & maxv);
+    }
+  } else {
+    if (bits >= fromBits) {
+      throw Exception("Excess padding");
+    }
+    if (((acc << (toBits - bits)) & maxv) != 0) {
+      throw Exception("Non-zero padding");
+    }
+  }
+  return result;
 }
