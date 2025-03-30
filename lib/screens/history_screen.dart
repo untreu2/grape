@@ -15,12 +15,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
   List<Map<String, dynamic>> _transactions = [];
   bool _isLoading = true;
   String? _errorMessage;
-  final Map<String, String> _currencySymbols = const {
-    'usd': '\$',
-    'eur': '€',
-    'gbp': '£',
-    'try': '₺',
-  };
 
   @override
   void initState() {
@@ -78,7 +72,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         final tx = _transactions[index];
                         return TransferCard(
                           tx: tx,
-                          currencySymbols: _currencySymbols,
                           enableInvoiceCopy: true,
                         );
                       },

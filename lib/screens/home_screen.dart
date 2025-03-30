@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:animated_flip_counter/animated_flip_counter.dart';
 import 'package:flutter/services.dart';
 import '../wallet_provider.dart';
 import 'send_screen.dart';
@@ -26,13 +25,6 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isBTC = false;
   static const int satoshiPerBTC = 100000000;
   double? _fiatBalance;
-  String _selectedFiatCurrency = 'usd';
-  final Map<String, String> _currencySymbols = {
-    'usd': '\$',
-    'eur': '€',
-    'gbp': '£',
-    'try': '₺',
-  };
   List<Map<String, dynamic>> _lastTransactions = [];
   bool _isTransactionsLoading = true;
 
@@ -62,7 +54,6 @@ class _HomeScreenState extends State<HomeScreen> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
       _isBTC = prefs.getBool('isBTC') ?? false;
-      _selectedFiatCurrency = prefs.getString('selectedFiatCurrency') ?? 'usd';
     });
   }
 
@@ -103,7 +94,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final walletProvider = Provider.of<WalletProvider>(context, listen: false);
     double? fiat = await walletProvider.convertSatoshisToCurrency(
       100000000,
-      _selectedFiatCurrency,
+      'usd',
     );
     if (fiat != null) {
       final String? balanceStr = walletProvider.balance;
@@ -144,31 +135,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final Color fiatBalanceColor = _fiatBalance != null && _fiatBalance! >= 0
         ? AppColors.currencypositive
         : AppColors.currencynegative;
-    return GestureDetector(
-      onTap: _toggleFiatCurrency,
-      child: Text(
-        '${_currencySymbols[_selectedFiatCurrency]!}${_fiatBalance?.toStringAsFixed(2) ?? "--"}',
-        style: TextStyle(
-          fontSize: 24,
-          color: fiatBalanceColor,
-          fontWeight: FontWeight.bold,
-        ),
+    return Text(
+      '\$${_fiatBalance?.toStringAsFixed(2) ?? "--"}',
+      style: TextStyle(
+        fontSize: 24,
+        color: fiatBalanceColor,
+        fontWeight: FontWeight.bold,
       ),
     );
-  }
-
-  void _toggleFiatCurrency() async {
-    List<String> currencies = _currencySymbols.keys.toList();
-    int currentIndex = currencies.indexOf(_selectedFiatCurrency);
-    int nextIndex = (currentIndex + 1) % currencies.length;
-    String nextCurrency = currencies[nextIndex];
-    setState(() {
-      _selectedFiatCurrency = nextCurrency;
-      _fiatBalance = null;
-    });
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString('selectedFiatCurrency', _selectedFiatCurrency);
-    _updateFiatBalance();
   }
 
   @override
@@ -216,11 +190,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               crossAxisAlignment: CrossAxisAlignment.baseline,
                               textBaseline: TextBaseline.alphabetic,
                               children: [
-                                AnimatedFlipCounter(
-                                  duration: const Duration(milliseconds: 500),
-                                  value: displayBalance,
-                                  fractionDigits: _isBTC ? 8 : 0,
-                                  textStyle: TextStyle(
+                                Text(
+                                  displayBalance
+                                      .toStringAsFixed(_isBTC ? 8 : 0),
+                                  style: TextStyle(
                                     fontSize: baseFontSize,
                                     fontWeight: FontWeight.bold,
                                     color: cryptoBalanceColor,
@@ -258,7 +231,6 @@ class _HomeScreenState extends State<HomeScreen> {
                             children: [
                               TransferCard(
                                 tx: _lastTransactions.first,
-                                currencySymbols: _currencySymbols,
                                 enableInvoiceCopy: false,
                               ),
                               Align(
