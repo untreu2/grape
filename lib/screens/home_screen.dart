@@ -140,26 +140,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Widget _buildCryptoLabel(String? balance) {
-    return GestureDetector(
-      onTap: () async {
-        setState(() {
-          _isBTC = !_isBTC;
-        });
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        await prefs.setBool('isBTC', _isBTC);
-      },
-      child: Text(
-        getBalanceLabel(balance),
-        style: const TextStyle(
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
-          color: AppColors.primaryText,
-        ),
-      ),
-    );
-  }
-
   Widget _buildFiatBalance() {
     final Color fiatBalanceColor = _fiatBalance != null && _fiatBalance! >= 0
         ? AppColors.currencypositive
@@ -203,18 +183,6 @@ class _HomeScreenState extends State<HomeScreen> {
     final Color cryptoBalanceColor = AppColors.primaryText;
     return Scaffold(
       drawer: const AppDrawer(),
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        elevation: 0,
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu, color: AppColors.primaryText),
-            onPressed: () {
-              Scaffold.of(context).openDrawer();
-            },
-          ),
-        ),
-      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -236,27 +204,43 @@ class _HomeScreenState extends State<HomeScreen> {
                       },
                       child: LayoutBuilder(
                         builder: (context, constraints) {
+                          double baseFontSize = 64;
                           double balanceNum =
                               double.tryParse(balance ?? '0') ?? 0;
                           double displayBalance =
                               _isBTC ? balanceNum / satoshiPerBTC : balanceNum;
                           return FittedBox(
                             fit: BoxFit.scaleDown,
-                            child: AnimatedFlipCounter(
-                              duration: const Duration(milliseconds: 500),
-                              value: displayBalance,
-                              fractionDigits: _isBTC ? 8 : 0,
-                              textStyle: TextStyle(
-                                fontSize: 64,
-                                fontWeight: FontWeight.bold,
-                                color: cryptoBalanceColor,
-                              ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.baseline,
+                              textBaseline: TextBaseline.alphabetic,
+                              children: [
+                                AnimatedFlipCounter(
+                                  duration: const Duration(milliseconds: 500),
+                                  value: displayBalance,
+                                  fractionDigits: _isBTC ? 8 : 0,
+                                  textStyle: TextStyle(
+                                    fontSize: baseFontSize,
+                                    fontWeight: FontWeight.bold,
+                                    color: cryptoBalanceColor,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  getBalanceLabel(balance),
+                                  style: TextStyle(
+                                    fontSize: baseFontSize / 2,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primaryText,
+                                  ),
+                                ),
+                              ],
                             ),
                           );
                         },
                       ),
                     ),
-                    _buildCryptoLabel(balance),
                     const Padding(padding: EdgeInsets.only(top: 20.0)),
                     _buildFiatBalance(),
                   ],
