@@ -8,7 +8,7 @@ import '../utils/colors.dart';
 class SendScreen extends StatefulWidget {
   final String? preFilledData;
 
-  const SendScreen({super.key, this.preFilledData});
+  const SendScreen({Key? key, this.preFilledData}) : super(key: key);
 
   @override
   _SendScreenState createState() => _SendScreenState();
@@ -34,17 +34,13 @@ class _SendScreenState extends State<SendScreen> {
     super.initState();
     if (widget.preFilledData != null && widget.preFilledData!.isNotEmpty) {
       final data = widget.preFilledData!.trim();
-      if (data.toLowerCase().startsWith('ln') && !data.contains('@')) {
+      if (data.toLowerCase().startsWith('lnbc') && !data.contains('@')) {
         _paymentMethod = 'invoice';
         _invoiceController.text = data;
         _fetchInvoiceDetails();
-      } else if (data.contains('@')) {
+      } else {
         _paymentMethod = 'lnurl';
         _lnurlController.text = data;
-      } else {
-        _paymentMethod = 'invoice';
-        _invoiceController.text = data;
-        _fetchInvoiceDetails();
       }
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {

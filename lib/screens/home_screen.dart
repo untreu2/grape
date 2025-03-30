@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:animated_flip_counter/animated_flip_counter.dart';
+import 'package:flutter/services.dart';
 import '../wallet_provider.dart';
 import 'send_screen.dart';
 import 'history_screen.dart';
+import 'scan_screen.dart';
 import '../pop/drawer.dart';
 import '../utils/colors.dart';
 import '../pop/tx.dart';
@@ -164,34 +166,13 @@ class _HomeScreenState extends State<HomeScreen> {
         : AppColors.currencynegative;
     return GestureDetector(
       onTap: _toggleFiatCurrency,
-      child: Column(
-        children: [
-          _fiatBalance != null
-              ? Text(
-                  '${_currencySymbols[_selectedFiatCurrency]!}${_fiatBalance!.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontSize: 24,
-                    color: fiatBalanceColor,
-                    fontWeight: FontWeight.bold,
-                  ),
-                )
-              : const SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-          Padding(
-            padding: const EdgeInsets.only(top: 4.0),
-            child: Text(
-              _selectedFiatCurrency.toUpperCase(),
-              style: TextStyle(
-                fontSize: 16,
-                color: fiatBalanceColor,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
+      child: Text(
+        '${_currencySymbols[_selectedFiatCurrency]!}${_fiatBalance?.toStringAsFixed(2) ?? "--"}',
+        style: TextStyle(
+          fontSize: 24,
+          color: fiatBalanceColor,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }
@@ -320,57 +301,127 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
               ),
               const Spacer(flex: 3),
-              Column(
+              Row(
                 children: [
-                  Container(
-                    margin: const EdgeInsets.only(top: 20.0),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              Navigator.pushNamed(context, '/invoice');
-                            },
-                            icon: const Icon(
-                              Icons.arrow_downward,
-                              color: AppColors.primaryText,
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 18.0),
-                            ),
-                            label: const Text(
-                              'Receive',
-                              style: TextStyle(fontSize: 20),
-                            ),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ScanScreen(),
                           ),
+                        );
+                      },
+                      icon: const Icon(Icons.qr_code_scanner,
+                          color: AppColors.primaryText),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 18.0),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
                         ),
-                        const SizedBox(width: 20),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const SendScreen(),
-                                ),
-                              );
-                            },
-                            icon: const Icon(
-                              Icons.arrow_upward,
-                              color: AppColors.primaryText,
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 18.0),
-                            ),
-                            label: const Text(
-                              'Send',
-                              style: TextStyle(fontSize: 20),
-                            ),
+                        backgroundColor: AppColors.buttonBackground,
+                        foregroundColor: AppColors.buttonText,
+                      ),
+                      label: const Text(
+                        'Scan',
+                        style: TextStyle(fontSize: 20),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        final clipboardData =
+                            await Clipboard.getData('text/plain');
+                        final text = clipboardData?.text?.trim() ?? '';
+                        if (text.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Clipboard is empty")),
+                          );
+                          return;
+                        }
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                SendScreen(preFilledData: text),
                           ),
+                        );
+                      },
+                      icon:
+                          const Icon(Icons.paste, color: AppColors.primaryText),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 18.0),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
                         ),
-                      ],
+                        backgroundColor: AppColors.buttonBackground,
+                        foregroundColor: AppColors.buttonText,
+                      ),
+                      label: const Text(
+                        'Paste',
+                        style: TextStyle(fontSize: 20),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pushNamed(context, '/invoice');
+                      },
+                      icon: const Icon(
+                        Icons.arrow_downward,
+                        color: AppColors.primaryText,
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 18.0),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                          side: const BorderSide(color: AppColors.primaryText),
+                        ),
+                        backgroundColor: AppColors.buttonBackground,
+                        foregroundColor: AppColors.buttonText,
+                      ),
+                      label: const Text(
+                        'Receive',
+                        style: TextStyle(fontSize: 20),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SendScreen(),
+                          ),
+                        );
+                      },
+                      icon: const Icon(
+                        Icons.arrow_upward,
+                        color: AppColors.primaryText,
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 18.0),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        backgroundColor: AppColors.buttonBackground,
+                        foregroundColor: AppColors.buttonText,
+                      ),
+                      label: const Text(
+                        'Send',
+                        style: TextStyle(fontSize: 20),
+                      ),
                     ),
                   ),
                 ],
