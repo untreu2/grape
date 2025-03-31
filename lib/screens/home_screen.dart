@@ -28,12 +28,18 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Map<String, dynamic>> _lastTransactions = [];
   bool _isTransactionsLoading = true;
 
+  bool _showRipple = false;
+  String? _previousBalance;
+
   @override
   void initState() {
     super.initState();
     _fiatBalance = null;
     _loadPreferences();
-    _fetchBalance();
+    _fetchBalance().then((_) {
+      _previousBalance =
+          Provider.of<WalletProvider>(context, listen: false).balance;
+    });
     _fetchTransactions();
     _balanceTimer = Timer.periodic(
       const Duration(seconds: 1),
@@ -70,8 +76,25 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _checkBalanceChange() async {
     final walletProvider = Provider.of<WalletProvider>(context, listen: false);
     await walletProvider.fetchBalance();
+    String? currentBalance = walletProvider.balance;
+    if (_previousBalance != null && _previousBalance != currentBalance) {
+      _triggerRippleEffect();
+    }
+    _previousBalance = currentBalance;
     setState(() {});
     _updateFiatBalance();
+  }
+
+  void _triggerRippleEffect() {
+    setState(() {
+      _showRipple = true;
+    });
+  }
+
+  void _onRippleAnimationComplete() {
+    setState(() {
+      _showRipple = false;
+    });
   }
 
   Future<void> _fetchTransactions() async {
@@ -157,236 +180,319 @@ class _HomeScreenState extends State<HomeScreen> {
     final Color cryptoBalanceColor = AppColors.primaryText;
     return Scaffold(
       drawer: const AppDrawer(),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Column(
-            children: [
-              const Spacer(flex: 2),
-              Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    GestureDetector(
-                      onTap: () async {
-                        setState(() {
-                          _isBTC = !_isBTC;
-                        });
-                        SharedPreferences prefs =
-                            await SharedPreferences.getInstance();
-                        await prefs.setBool('isBTC', _isBTC);
-                      },
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          double baseFontSize = 64;
-                          double balanceNum =
-                              double.tryParse(balance ?? '0') ?? 0;
-                          double displayBalance =
-                              _isBTC ? balanceNum / satoshiPerBTC : balanceNum;
-                          return FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.baseline,
-                              textBaseline: TextBaseline.alphabetic,
-                              children: [
-                                Text(
-                                  displayBalance
-                                      .toStringAsFixed(_isBTC ? 8 : 0),
-                                  style: TextStyle(
-                                    fontSize: baseFontSize,
-                                    fontWeight: FontWeight.bold,
-                                    color: cryptoBalanceColor,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  getBalanceLabel(balance),
-                                  style: TextStyle(
-                                    fontSize: baseFontSize / 2,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.primaryText,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    const Padding(padding: EdgeInsets.only(top: 20.0)),
-                    _buildFiatBalance(),
-                  ],
-                ),
-              ),
-              const Spacer(flex: 1),
-              Expanded(
-                flex: 4,
-                child: _isTransactionsLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _lastTransactions.isEmpty
-                        ? const Center(child: Text("No transactions found."))
-                        : Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              TransferCard(
-                                tx: _lastTransactions.first,
-                                enableInvoiceCopy: false,
-                              ),
-                              Align(
-                                alignment: Alignment.center,
-                                child: TextButton(
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            const HistoryScreen(),
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Column(
+                children: [
+                  const Spacer(flex: 2),
+                  Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        GestureDetector(
+                          onTap: () async {
+                            setState(() {
+                              _isBTC = !_isBTC;
+                            });
+                            SharedPreferences prefs =
+                                await SharedPreferences.getInstance();
+                            await prefs.setBool('isBTC', _isBTC);
+                          },
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              double baseFontSize = 64;
+                              double balanceNum =
+                                  double.tryParse(balance ?? '0') ?? 0;
+                              double displayBalance = _isBTC
+                                  ? balanceNum / satoshiPerBTC
+                                  : balanceNum;
+                              return FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.baseline,
+                                  textBaseline: TextBaseline.alphabetic,
+                                  children: [
+                                    Text(
+                                      displayBalance
+                                          .toStringAsFixed(_isBTC ? 8 : 0),
+                                      style: TextStyle(
+                                        fontSize: baseFontSize,
+                                        fontWeight: FontWeight.bold,
+                                        color: cryptoBalanceColor,
                                       ),
-                                    );
-                                  },
-                                  child: const Text(
-                                    "Show more...",
-                                    style: TextStyle(
-                                      color: AppColors.primaryText,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      getBalanceLabel(balance),
+                                      style: TextStyle(
+                                        fontSize: baseFontSize / 2,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.primaryText,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const Padding(padding: EdgeInsets.only(top: 20.0)),
+                        _buildFiatBalance(),
+                      ],
+                    ),
+                  ),
+                  const Spacer(flex: 1),
+                  Expanded(
+                    flex: 4,
+                    child: _isTransactionsLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : _lastTransactions.isEmpty
+                            ? const Center(
+                                child: Text("No transactions found."))
+                            : Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  TransferCard(
+                                    tx: _lastTransactions.first,
+                                    enableInvoiceCopy: false,
+                                  ),
+                                  Align(
+                                    alignment: Alignment.center,
+                                    child: TextButton(
+                                      onPressed: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                const HistoryScreen(),
+                                          ),
+                                        );
+                                      },
+                                      child: const Text(
+                                        "Show more...",
+                                        style: TextStyle(
+                                          color: AppColors.primaryText,
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                ),
+                                ],
                               ),
-                            ],
-                          ),
-              ),
-              const Spacer(flex: 3),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const ScanScreen(),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.qr_code_scanner,
-                          color: AppColors.primaryText),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 18.0),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        backgroundColor: AppColors.buttonBackground,
-                        foregroundColor: AppColors.buttonText,
-                      ),
-                      label: const Text(
-                        'Scan',
-                        style: TextStyle(fontSize: 20),
-                      ),
-                    ),
                   ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () async {
-                        final clipboardData =
-                            await Clipboard.getData('text/plain');
-                        final text = clipboardData?.text?.trim() ?? '';
-                        if (text.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Clipboard is empty")),
-                          );
-                          return;
-                        }
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                SendScreen(preFilledData: text),
+                  const Spacer(flex: 3),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const ScanScreen(),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.qr_code_scanner,
+                              color: AppColors.primaryText),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 18.0),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            backgroundColor: AppColors.buttonBackground,
+                            foregroundColor: AppColors.buttonText,
                           ),
-                        );
-                      },
-                      icon:
-                          const Icon(Icons.paste, color: AppColors.primaryText),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 18.0),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
+                          label: const Text(
+                            'Scan',
+                            style: TextStyle(fontSize: 20),
+                          ),
                         ),
-                        backgroundColor: AppColors.buttonBackground,
-                        foregroundColor: AppColors.buttonText,
                       ),
-                      label: const Text(
-                        'Paste',
-                        style: TextStyle(fontSize: 20),
+                      const SizedBox(width: 20),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            final clipboardData =
+                                await Clipboard.getData('text/plain');
+                            final text = clipboardData?.text?.trim() ?? '';
+                            if (text.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text("Clipboard is empty")),
+                              );
+                              return;
+                            }
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    SendScreen(preFilledData: text),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.paste,
+                              color: AppColors.primaryText),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 18.0),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            backgroundColor: AppColors.buttonBackground,
+                            foregroundColor: AppColors.buttonText,
+                          ),
+                          label: const Text(
+                            'Paste',
+                            style: TextStyle(fontSize: 20),
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pushNamed(context, '/invoice');
+                          },
+                          icon: const Icon(
+                            Icons.arrow_downward,
+                            color: AppColors.primaryText,
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 18.0),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                              side: const BorderSide(
+                                  color: AppColors.primaryText),
+                            ),
+                            backgroundColor: AppColors.buttonBackground,
+                            foregroundColor: AppColors.buttonText,
+                          ),
+                          label: const Text(
+                            'Receive',
+                            style: TextStyle(fontSize: 20),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 20),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const SendScreen(),
+                              ),
+                            );
+                          },
+                          icon: const Icon(
+                            Icons.arrow_upward,
+                            color: AppColors.primaryText,
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 18.0),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            backgroundColor: AppColors.buttonBackground,
+                            foregroundColor: AppColors.buttonText,
+                          ),
+                          label: const Text(
+                            'Send',
+                            style: TextStyle(fontSize: 20),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Spacer(flex: 1),
                 ],
               ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pushNamed(context, '/invoice');
-                      },
-                      icon: const Icon(
-                        Icons.arrow_downward,
-                        color: AppColors.primaryText,
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 18.0),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                          side: const BorderSide(color: AppColors.primaryText),
-                        ),
-                        backgroundColor: AppColors.buttonBackground,
-                        foregroundColor: AppColors.buttonText,
-                      ),
-                      label: const Text(
-                        'Receive',
-                        style: TextStyle(fontSize: 20),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SendScreen(),
-                          ),
-                        );
-                      },
-                      icon: const Icon(
-                        Icons.arrow_upward,
-                        color: AppColors.primaryText,
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 18.0),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        backgroundColor: AppColors.buttonBackground,
-                        foregroundColor: AppColors.buttonText,
-                      ),
-                      label: const Text(
-                        'Send',
-                        style: TextStyle(fontSize: 20),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const Spacer(flex: 1),
-            ],
+            ),
           ),
-        ),
+          if (_showRipple)
+            Positioned.fill(
+              child: RippleEffect(
+                onAnimationComplete: _onRippleAnimationComplete,
+              ),
+            ),
+        ],
       ),
     );
+  }
+}
+
+class RippleEffect extends StatefulWidget {
+  final VoidCallback onAnimationComplete;
+  const RippleEffect({super.key, required this.onAnimationComplete});
+
+  @override
+  _RippleEffectState createState() => _RippleEffectState();
+}
+
+class _RippleEffectState extends State<RippleEffect>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(seconds: 1),
+      vsync: this,
+    );
+    _animation = Tween<double>(begin: 0, end: 1).animate(_controller)
+      ..addStatusListener((status) {
+        if (status == AnimationStatus.completed) {
+          widget.onAnimationComplete();
+        }
+      });
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return CustomPaint(
+          painter: RipplePainter(progress: _animation.value),
+          child: Container(),
+        );
+      },
+    );
+  }
+}
+
+class RipplePainter extends CustomPainter {
+  final double progress;
+  RipplePainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint paint = Paint()
+      ..color = AppColors.currencypositive.withOpacity(1 - progress)
+      ..style = PaintingStyle.fill;
+    double radius = progress * size.longestSide;
+    canvas.drawCircle(size.center(Offset.zero), radius, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant RipplePainter oldDelegate) {
+    return oldDelegate.progress != progress;
   }
 }
