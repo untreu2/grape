@@ -30,7 +30,6 @@ class _SendScreenState extends State<SendScreen> {
   bool _showRipple = false;
 
   double? _fiatValue;
-
   double? _convertedAmount;
   CurrencyUnit _selectedUnit = CurrencyUnit.sats;
 
@@ -51,13 +50,6 @@ class _SendScreenState extends State<SendScreen> {
         _lnurlController.text = data;
       }
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_paymentMethod == 'invoice') {
-        FocusScope.of(context).requestFocus(_invoiceFocusNode);
-      } else {
-        FocusScope.of(context).requestFocus(_lnurlFocusNode);
-      }
-    });
   }
 
   @override
@@ -143,6 +135,9 @@ class _SendScreenState extends State<SendScreen> {
   }
 
   Future<bool> _confirmFee(double fee) async {
+    if (fee == 0) {
+      return true;
+    }
     return await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
@@ -331,13 +326,6 @@ class _SendScreenState extends State<SendScreen> {
                                 _fiatValue = null;
                                 _convertedAmount = null;
                               });
-                              if (index == 0) {
-                                FocusScope.of(context)
-                                    .requestFocus(_invoiceFocusNode);
-                              } else if (index == 1) {
-                                FocusScope.of(context)
-                                    .requestFocus(_lnurlFocusNode);
-                              }
                             },
                             borderRadius: BorderRadius.circular(30),
                             borderWidth: 2,
@@ -571,10 +559,17 @@ class _SendScreenState extends State<SendScreen> {
               ),
             ),
           ),
+          if (_isLoading)
+            Positioned.fill(
+              child: RippleEffectContinuous(
+                color: AppColors.payingloading,
+              ),
+            ),
           if (_showRipple)
             Positioned.fill(
               child: RippleEffect(
                 onAnimationComplete: _onRippleAnimationComplete,
+                color: AppColors.currencypositive,
               ),
             ),
         ],
@@ -585,8 +580,12 @@ class _SendScreenState extends State<SendScreen> {
 
 class RippleEffect extends StatefulWidget {
   final VoidCallback onAnimationComplete;
-  const RippleEffect({Key? key, required this.onAnimationComplete})
-      : super(key: key);
+  final Color color;
+  const RippleEffect({
+    Key? key,
+    required this.onAnimationComplete,
+    this.color = const Color(0xFF4CAF50),
+  }) : super(key: key);
 
   @override
   _RippleEffectState createState() => _RippleEffectState();
@@ -625,7 +624,52 @@ class _RippleEffectState extends State<RippleEffect>
       animation: _animation,
       builder: (context, child) {
         return CustomPaint(
-          painter: RipplePainter(progress: _animation.value),
+          painter:
+              RipplePainter(progress: _animation.value, color: widget.color),
+          child: Container(),
+        );
+      },
+    );
+  }
+}
+
+class RippleEffectContinuous extends StatefulWidget {
+  final Color color;
+  const RippleEffectContinuous({Key? key, required this.color})
+      : super(key: key);
+
+  @override
+  _RippleEffectContinuousState createState() => _RippleEffectContinuousState();
+}
+
+class _RippleEffectContinuousState extends State<RippleEffectContinuous>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller =
+        AnimationController(duration: const Duration(seconds: 2), vsync: this);
+    _animation = Tween<double>(begin: 0, end: 1).animate(_controller);
+    _controller.repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return CustomPaint(
+          painter:
+              RipplePainter(progress: _animation.value, color: widget.color),
           child: Container(),
         );
       },
@@ -635,12 +679,13 @@ class _RippleEffectState extends State<RippleEffect>
 
 class RipplePainter extends CustomPainter {
   final double progress;
-  RipplePainter({required this.progress});
+  final Color color;
+  RipplePainter({required this.progress, required this.color});
 
   @override
   void paint(Canvas canvas, Size size) {
     final Paint paint = Paint()
-      ..color = AppColors.currencypositive.withOpacity(1 - progress)
+      ..color = color.withOpacity(1 - progress)
       ..style = PaintingStyle.fill;
     double radius = progress * size.longestSide;
     canvas.drawCircle(size.center(Offset.zero), radius, paint);
@@ -648,6 +693,6 @@ class RipplePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant RipplePainter oldDelegate) {
-    return oldDelegate.progress != progress;
+    return oldDelegate.progress != progress || oldDelegate.color != color;
   }
 }

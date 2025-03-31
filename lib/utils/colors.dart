@@ -2,21 +2,13 @@ import 'package:flutter/material.dart';
 
 class AppColors {
   static const Color background = Color(0xFF000000);
-
   static const Color primaryText = Color(0xFFFFFFFF);
-
   static const Color secondaryText = Color(0xFFE0E0E0);
-
   static const Color border = Color(0xFFAAAAAA);
-
   static const Color buttonBackground = Color(0xFF222222);
-
   static const Color buttonText = Color(0xFFFFFFFF);
-
   static const Color error = Color(0xFF888888);
-
   static const Color success = Color(0xFFDDDDDD);
-
   static const Color currencypositive = Color(0xFF81C784);
   static const Color currencynegative = Color(0xFFE57373);
 
@@ -41,4 +33,6 @@ class AppColors {
 
   static const Color qrBackground = Colors.white;
   static const Color qrIconColor = primaryText;
+
+  static const Color payingloading = Color(0xFFFFF9C4);
 }
