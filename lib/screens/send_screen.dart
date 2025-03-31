@@ -26,6 +26,8 @@ class _SendScreenState extends State<SendScreen> {
   double? _fee;
   bool _isLoading = false;
 
+  bool _showRipple = false;
+
   final FocusNode _invoiceFocusNode = FocusNode();
   final FocusNode _lnurlFocusNode = FocusNode();
 
@@ -153,13 +155,15 @@ class _SendScreenState extends State<SendScreen> {
           _confirmFee,
         );
       }
-      if (walletProvider.status != null) {
+      if (walletProvider.status == "SUCCESS") {
+        setState(() {
+          _showRipple = true;
+        });
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(walletProvider.status!),
-            backgroundColor: walletProvider.status == "SUCCESS"
-                ? AppColors.sendSuccess
-                : AppColors.sendError,
+            content: Text(walletProvider.status ?? "Unknown status"),
+            backgroundColor: AppColors.sendError,
           ),
         );
       }
@@ -177,266 +181,353 @@ class _SendScreenState extends State<SendScreen> {
     }
   }
 
+  void _onRippleAnimationComplete() {
+    Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final isInvoicePaymentDisabled = _paymentMethod == 'invoice' &&
         (_invoiceController.text.trim().isNotEmpty && _fee == null);
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                if (_requestedAmount != null) ...[
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10.0),
-                    child: AutoSizeText(
-                      "${_requestedAmount} SATS",
-                      style: TextStyle(
-                        fontSize: 40,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.sendAmountText,
-                      ),
-                      maxLines: 1,
-                      minFontSize: 10,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  if (_memo != null && _memo!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 20.0),
-                      child: AutoSizeText(
-                        "$_memo",
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontStyle: FontStyle.italic,
-                          color: AppColors.secondaryText,
-                        ),
-                        maxLines: 1,
-                        minFontSize: 10,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                ],
-                Form(
-                  key: _formKey,
-                  child: Column(
-                    children: [
-                      ToggleButtons(
-                        isSelected: [
-                          _paymentMethod == 'invoice',
-                          _paymentMethod == 'lnurl',
-                        ],
-                        onPressed: (index) {
-                          setState(() {
-                            _paymentMethod = index == 0 ? 'invoice' : 'lnurl';
-                            _invoiceController.clear();
-                            _lnurlController.clear();
-                            _amountController.clear();
-                            _memoController.clear();
-                            _requestedAmount = null;
-                            _memo = null;
-                            _fee = null;
-                          });
-                          if (index == 0) {
-                            FocusScope.of(context)
-                                .requestFocus(_invoiceFocusNode);
-                          } else if (index == 1) {
-                            FocusScope.of(context)
-                                .requestFocus(_lnurlFocusNode);
-                          }
-                        },
-                        borderRadius: BorderRadius.circular(30),
-                        borderWidth: 2,
-                        selectedBorderColor: AppColors.border,
-                        borderColor: AppColors.border,
-                        selectedColor: AppColors.buttonText,
-                        color: AppColors.primaryText,
-                        fillColor: AppColors.buttonBackground,
-                        textStyle: Theme.of(context).textTheme.bodyLarge,
-                        children: const [
-                          Padding(
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 32.0, vertical: 12.0),
-                            child: Text('Invoice'),
+      body: Stack(
+        children: [
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    if (_requestedAmount != null) ...[
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 10.0),
+                        child: AutoSizeText(
+                          "${_requestedAmount} SATS",
+                          style: TextStyle(
+                            fontSize: 40,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.sendAmountText,
                           ),
-                          Padding(
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 32.0, vertical: 12.0),
-                            child: Text('Address'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      _paymentMethod == 'invoice'
-                          ? TextFormField(
-                              controller: _invoiceController,
-                              focusNode: _invoiceFocusNode,
-                              decoration: InputDecoration(
-                                labelText: 'Lightning Invoice',
-                                labelStyle:
-                                    TextStyle(color: AppColors.primaryText),
-                                filled: true,
-                                fillColor: AppColors.buttonBackground,
-                                border: const OutlineInputBorder(),
-                                enabledBorder: OutlineInputBorder(
-                                  borderSide:
-                                      BorderSide(color: AppColors.border),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderSide:
-                                      BorderSide(color: AppColors.border),
-                                ),
-                              ),
-                              onChanged: (value) => _fetchInvoiceDetails(),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Please enter a Lightning Invoice';
-                                }
-                                return null;
-                              },
-                            )
-                          : Column(
-                              children: [
-                                TextFormField(
-                                  controller: _lnurlController,
-                                  focusNode: _lnurlFocusNode,
-                                  decoration: InputDecoration(
-                                    labelText:
-                                        'LN Address (e.g. someone@domain.com)',
-                                    labelStyle:
-                                        TextStyle(color: AppColors.primaryText),
-                                    filled: true,
-                                    fillColor: AppColors.buttonBackground,
-                                    border: const OutlineInputBorder(),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderSide:
-                                          BorderSide(color: AppColors.border),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderSide:
-                                          BorderSide(color: AppColors.border),
-                                    ),
-                                  ),
-                                  validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return 'Please enter a Lightning Address';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                                const SizedBox(height: 10),
-                                TextFormField(
-                                  controller: _amountController,
-                                  keyboardType: TextInputType.number,
-                                  decoration: InputDecoration(
-                                    labelText: 'Amount (sats)',
-                                    labelStyle:
-                                        TextStyle(color: AppColors.primaryText),
-                                    filled: true,
-                                    fillColor: AppColors.buttonBackground,
-                                    border: const OutlineInputBorder(),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderSide:
-                                          BorderSide(color: AppColors.border),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderSide:
-                                          BorderSide(color: AppColors.border),
-                                    ),
-                                  ),
-                                  validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return 'Please enter an amount';
-                                    }
-                                    if (int.tryParse(value) == null ||
-                                        int.parse(value) <= 0) {
-                                      return 'Enter a valid amount';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                                const SizedBox(height: 10),
-                                TextFormField(
-                                  controller: _memoController,
-                                  decoration: InputDecoration(
-                                    labelText: 'Memo (optional)',
-                                    hintText: 'Sent from Grape!',
-                                    labelStyle:
-                                        TextStyle(color: AppColors.primaryText),
-                                    filled: true,
-                                    fillColor: AppColors.buttonBackground,
-                                    border: const OutlineInputBorder(),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderSide:
-                                          BorderSide(color: AppColors.border),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderSide:
-                                          BorderSide(color: AppColors.border),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                      const SizedBox(height: 20),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: (_isLoading || isInvoicePaymentDisabled)
-                              ? null
-                              : _sendPayment,
-                          icon: _isLoading
-                              ? SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: CircularProgressIndicator(
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                        AppColors.buttonText),
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : Icon(Icons.currency_bitcoin,
-                                  color: AppColors.secondaryText),
-                          label: _isLoading
-                              ? Text('Paying...')
-                              : const Text('Pay'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.buttonBackground,
-                            foregroundColor: AppColors.buttonText,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                          ),
+                          maxLines: 1,
+                          minFontSize: 10,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (_paymentMethod == 'invoice' &&
-                          _invoiceController.text.trim().isNotEmpty)
+                      if (_memo != null && _memo!.isNotEmpty)
                         Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: Text(
-                            _fee == null
-                                ? "Estimating fee..."
-                                : _fee == 1
-                                    ? "1 sat"
-                                    : "Fee: ${_fee!.toStringAsFixed(0)} sats",
+                          padding: const EdgeInsets.only(bottom: 20.0),
+                          child: AutoSizeText(
+                            "$_memo",
                             style: TextStyle(
+                              fontSize: 24,
+                              fontStyle: FontStyle.italic,
                               color: AppColors.secondaryText,
-                              fontSize: 16,
                             ),
+                            maxLines: 1,
+                            minFontSize: 10,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                     ],
-                  ),
+                    Form(
+                      key: _formKey,
+                      child: Column(
+                        children: [
+                          ToggleButtons(
+                            isSelected: [
+                              _paymentMethod == 'invoice',
+                              _paymentMethod == 'lnurl',
+                            ],
+                            onPressed: (index) {
+                              setState(() {
+                                _paymentMethod =
+                                    index == 0 ? 'invoice' : 'lnurl';
+                                _invoiceController.clear();
+                                _lnurlController.clear();
+                                _amountController.clear();
+                                _memoController.clear();
+                                _requestedAmount = null;
+                                _memo = null;
+                                _fee = null;
+                              });
+                              if (index == 0) {
+                                FocusScope.of(context)
+                                    .requestFocus(_invoiceFocusNode);
+                              } else if (index == 1) {
+                                FocusScope.of(context)
+                                    .requestFocus(_lnurlFocusNode);
+                              }
+                            },
+                            borderRadius: BorderRadius.circular(30),
+                            borderWidth: 2,
+                            selectedBorderColor: AppColors.border,
+                            borderColor: AppColors.border,
+                            selectedColor: AppColors.buttonText,
+                            color: AppColors.primaryText,
+                            fillColor: AppColors.buttonBackground,
+                            textStyle: Theme.of(context).textTheme.bodyLarge,
+                            children: const [
+                              Padding(
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: 32.0, vertical: 12.0),
+                                child: Text('Invoice'),
+                              ),
+                              Padding(
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: 32.0, vertical: 12.0),
+                                child: Text('Address'),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          _paymentMethod == 'invoice'
+                              ? TextFormField(
+                                  controller: _invoiceController,
+                                  focusNode: _invoiceFocusNode,
+                                  decoration: InputDecoration(
+                                    labelText: 'Lightning Invoice',
+                                    labelStyle:
+                                        TextStyle(color: AppColors.primaryText),
+                                    filled: true,
+                                    fillColor: AppColors.buttonBackground,
+                                    border: const OutlineInputBorder(),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderSide:
+                                          BorderSide(color: AppColors.border),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderSide:
+                                          BorderSide(color: AppColors.border),
+                                    ),
+                                  ),
+                                  onChanged: (value) => _fetchInvoiceDetails(),
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return 'Please enter a Lightning Invoice';
+                                    }
+                                    return null;
+                                  },
+                                )
+                              : Column(
+                                  children: [
+                                    TextFormField(
+                                      controller: _lnurlController,
+                                      focusNode: _lnurlFocusNode,
+                                      decoration: InputDecoration(
+                                        labelText:
+                                            'LN Address (e.g. someone@domain.com)',
+                                        labelStyle: TextStyle(
+                                            color: AppColors.primaryText),
+                                        filled: true,
+                                        fillColor: AppColors.buttonBackground,
+                                        border: const OutlineInputBorder(),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderSide: BorderSide(
+                                              color: AppColors.border),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderSide: BorderSide(
+                                              color: AppColors.border),
+                                        ),
+                                      ),
+                                      validator: (value) {
+                                        if (value == null || value.isEmpty) {
+                                          return 'Please enter a Lightning Address';
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                    const SizedBox(height: 10),
+                                    TextFormField(
+                                      controller: _amountController,
+                                      keyboardType: TextInputType.number,
+                                      decoration: InputDecoration(
+                                        labelText: 'Amount (sats)',
+                                        labelStyle: TextStyle(
+                                            color: AppColors.primaryText),
+                                        filled: true,
+                                        fillColor: AppColors.buttonBackground,
+                                        border: const OutlineInputBorder(),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderSide: BorderSide(
+                                              color: AppColors.border),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderSide: BorderSide(
+                                              color: AppColors.border),
+                                        ),
+                                      ),
+                                      validator: (value) {
+                                        if (value == null || value.isEmpty) {
+                                          return 'Please enter an amount';
+                                        }
+                                        if (int.tryParse(value) == null ||
+                                            int.parse(value) <= 0) {
+                                          return 'Enter a valid amount';
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                    const SizedBox(height: 10),
+                                    TextFormField(
+                                      controller: _memoController,
+                                      decoration: InputDecoration(
+                                        labelText: 'Memo (optional)',
+                                        hintText: 'Sent from Grape!',
+                                        labelStyle: TextStyle(
+                                            color: AppColors.primaryText),
+                                        filled: true,
+                                        fillColor: AppColors.buttonBackground,
+                                        border: const OutlineInputBorder(),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderSide: BorderSide(
+                                              color: AppColors.border),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderSide: BorderSide(
+                                              color: AppColors.border),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                          const SizedBox(height: 20),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed:
+                                  (_isLoading || isInvoicePaymentDisabled)
+                                      ? null
+                                      : _sendPayment,
+                              icon: _isLoading
+                                  ? SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                                AppColors.buttonText),
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : Icon(Icons.currency_bitcoin,
+                                      color: AppColors.secondaryText),
+                              label: _isLoading
+                                  ? Text('Paying...')
+                                  : const Text('Pay'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.buttonBackground,
+                                foregroundColor: AppColors.buttonText,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (_paymentMethod == 'invoice' &&
+                              _invoiceController.text.trim().isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: Text(
+                                _fee == null
+                                    ? "Estimating fee..."
+                                    : _fee == 1
+                                        ? "1 sat"
+                                        : "Fee: ${_fee!.toStringAsFixed(0)} sats",
+                                style: TextStyle(
+                                  color: AppColors.secondaryText,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
-        ),
+          if (_showRipple)
+            Positioned.fill(
+              child: RippleEffect(
+                onAnimationComplete: _onRippleAnimationComplete,
+              ),
+            ),
+        ],
       ),
     );
+  }
+}
+
+class RippleEffect extends StatefulWidget {
+  final VoidCallback onAnimationComplete;
+  const RippleEffect({Key? key, required this.onAnimationComplete})
+      : super(key: key);
+
+  @override
+  _RippleEffectState createState() => _RippleEffectState();
+}
+
+class _RippleEffectState extends State<RippleEffect>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(seconds: 1),
+      vsync: this,
+    );
+    _animation = Tween<double>(begin: 0, end: 1).animate(_controller)
+      ..addStatusListener((status) {
+        if (status == AnimationStatus.completed) {
+          widget.onAnimationComplete();
+        }
+      });
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return CustomPaint(
+          painter: RipplePainter(progress: _animation.value),
+          child: Container(),
+        );
+      },
+    );
+  }
+}
+
+class RipplePainter extends CustomPainter {
+  final double progress;
+  RipplePainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint paint = Paint()
+      ..color = AppColors.currencypositive.withOpacity(1 - progress)
+      ..style = PaintingStyle.fill;
+    double radius = progress * size.longestSide;
+    canvas.drawCircle(size.center(Offset.zero), radius, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant RipplePainter oldDelegate) {
+    return oldDelegate.progress != progress;
   }
 }
