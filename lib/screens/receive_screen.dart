@@ -158,6 +158,10 @@ class _InvoicePageState extends State<InvoicePage> {
             : (walletProvider.lightningAddress ?? ''));
 
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        foregroundColor: AppColors.buttonText,
+      ),
       backgroundColor: AppColors.background,
       body: Padding(
         padding: const EdgeInsets.all(24.0),
