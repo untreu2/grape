@@ -168,6 +168,8 @@ class _SendScreenState extends State<SendScreen> {
   }
 
   Future<void> _sendPayment() async {
+    FocusScope.of(context).unfocus();
+
     if (!_formKey.currentState!.validate()) return;
     setState(() {
       _isLoading = true;
