@@ -5,6 +5,8 @@ import '../wallet_provider.dart';
 import '../utils/lnparser.dart';
 import '../utils/colors.dart';
 
+enum CurrencyUnit { sats, usd }
+
 class SendScreen extends StatefulWidget {
   final String? preFilledData;
 
@@ -25,8 +27,12 @@ class _SendScreenState extends State<SendScreen> {
   String? _memo;
   double? _fee;
   bool _isLoading = false;
-
   bool _showRipple = false;
+
+  double? _fiatValue;
+
+  double? _convertedAmount;
+  CurrencyUnit _selectedUnit = CurrencyUnit.sats;
 
   final FocusNode _invoiceFocusNode = FocusNode();
   final FocusNode _lnurlFocusNode = FocusNode();
@@ -65,6 +71,77 @@ class _SendScreenState extends State<SendScreen> {
     super.dispose();
   }
 
+  Future<void> _updateFiatValue(int satoshis) async {
+    final walletProvider = Provider.of<WalletProvider>(context, listen: false);
+    double? fiat =
+        await walletProvider.convertSatoshisToCurrency(satoshis, 'usd');
+    setState(() {
+      _fiatValue = fiat;
+    });
+  }
+
+  Future<void> _onAmountChanged(String value) async {
+    double? amount = double.tryParse(value);
+    if (amount == null) {
+      setState(() {
+        _convertedAmount = null;
+      });
+      return;
+    }
+    final walletProvider = Provider.of<WalletProvider>(context, listen: false);
+    if (_selectedUnit == CurrencyUnit.sats) {
+      int sats = amount.toInt();
+      double? fiat =
+          await walletProvider.convertSatoshisToCurrency(sats, 'usd');
+      setState(() {
+        _convertedAmount = fiat;
+      });
+    } else {
+      double? btcPrice =
+          await walletProvider.convertSatoshisToCurrency(100000000, 'usd');
+      if (btcPrice != null && btcPrice > 0) {
+        int sats = (amount * 100000000 / btcPrice).round();
+        setState(() {
+          _convertedAmount = sats.toDouble();
+        });
+      } else {
+        setState(() {
+          _convertedAmount = null;
+        });
+      }
+    }
+  }
+
+  Future<void> _fetchInvoiceDetails() async {
+    final invoice = _invoiceController.text.trim();
+    if (invoice.isEmpty) {
+      setState(() {
+        _requestedAmount = null;
+        _memo = null;
+        _fee = null;
+        _amountController.clear();
+        _fiatValue = null;
+      });
+      return;
+    }
+    final parsedAmount = LightningInvoiceParser.getSatoshiAmount(invoice);
+    final parsedMemo = LightningInvoiceParser.getMemo(invoice);
+    setState(() {
+      _requestedAmount = parsedAmount;
+      _memo = parsedMemo;
+      _amountController.text = _requestedAmount?.toString() ?? '';
+      _fee = null;
+    });
+    if (_requestedAmount != null) {
+      _updateFiatValue(_requestedAmount!);
+    }
+    final walletProvider = Provider.of<WalletProvider>(context, listen: false);
+    final fee = await walletProvider.probeInvoiceFee(invoice);
+    setState(() {
+      _fee = fee;
+    });
+  }
+
   Future<bool> _confirmFee(double fee) async {
     return await showDialog<bool>(
           context: context,
@@ -95,32 +172,6 @@ class _SendScreenState extends State<SendScreen> {
         false;
   }
 
-  Future<void> _fetchInvoiceDetails() async {
-    final invoice = _invoiceController.text.trim();
-    if (invoice.isEmpty) {
-      setState(() {
-        _requestedAmount = null;
-        _memo = null;
-        _fee = null;
-        _amountController.clear();
-      });
-      return;
-    }
-    final parsedAmount = LightningInvoiceParser.getSatoshiAmount(invoice);
-    final parsedMemo = LightningInvoiceParser.getMemo(invoice);
-    setState(() {
-      _requestedAmount = parsedAmount;
-      _memo = parsedMemo;
-      _amountController.text = _requestedAmount?.toString() ?? '';
-      _fee = null;
-    });
-    final walletProvider = Provider.of<WalletProvider>(context, listen: false);
-    final fee = await walletProvider.probeInvoiceFee(invoice);
-    setState(() {
-      _fee = fee;
-    });
-  }
-
   Future<void> _sendPayment() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() {
@@ -133,7 +184,19 @@ class _SendScreenState extends State<SendScreen> {
         await walletProvider.payInvoice(paymentRequest);
       } else {
         final lnurl = _lnurlController.text.trim();
-        final amount = int.tryParse(_amountController.text.trim()) ?? 0;
+        int amount;
+        if (_selectedUnit == CurrencyUnit.sats) {
+          amount = int.tryParse(_amountController.text.trim()) ?? 0;
+        } else {
+          double? usdAmount = double.tryParse(_amountController.text.trim());
+          double? btcPrice =
+              await walletProvider.convertSatoshisToCurrency(100000000, 'usd');
+          if (usdAmount == null || btcPrice == null || btcPrice <= 0) {
+            amount = 0;
+          } else {
+            amount = (usdAmount * 100000000 / btcPrice).round();
+          }
+        }
         if (amount <= 0) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -199,7 +262,8 @@ class _SendScreenState extends State<SendScreen> {
               child: SingleChildScrollView(
                 child: Column(
                   children: [
-                    if (_requestedAmount != null) ...[
+                    if (_paymentMethod == 'invoice' &&
+                        _requestedAmount != null) ...[
                       Padding(
                         padding: const EdgeInsets.only(bottom: 10.0),
                         child: AutoSizeText(
@@ -214,6 +278,20 @@ class _SendScreenState extends State<SendScreen> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      if (_fiatValue != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 20.0),
+                          child: AutoSizeText(
+                            "≈ \$${_fiatValue!.toStringAsFixed(2)}",
+                            style: TextStyle(
+                              fontSize: 20,
+                              color: AppColors.secondaryText,
+                            ),
+                            maxLines: 1,
+                            minFontSize: 10,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                       if (_memo != null && _memo!.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 20.0),
@@ -250,6 +328,8 @@ class _SendScreenState extends State<SendScreen> {
                                 _requestedAmount = null;
                                 _memo = null;
                                 _fee = null;
+                                _fiatValue = null;
+                                _convertedAmount = null;
                               });
                               if (index == 0) {
                                 FocusScope.of(context)
@@ -281,12 +361,43 @@ class _SendScreenState extends State<SendScreen> {
                             ],
                           ),
                           const SizedBox(height: 20),
-                          _paymentMethod == 'invoice'
-                              ? TextFormField(
-                                  controller: _invoiceController,
-                                  focusNode: _invoiceFocusNode,
+                          if (_paymentMethod == 'invoice')
+                            TextFormField(
+                              controller: _invoiceController,
+                              focusNode: _invoiceFocusNode,
+                              decoration: InputDecoration(
+                                labelText: 'Lightning Invoice',
+                                labelStyle:
+                                    TextStyle(color: AppColors.primaryText),
+                                filled: true,
+                                fillColor: AppColors.buttonBackground,
+                                border: const OutlineInputBorder(),
+                                enabledBorder: OutlineInputBorder(
+                                  borderSide:
+                                      BorderSide(color: AppColors.border),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderSide:
+                                      BorderSide(color: AppColors.border),
+                                ),
+                              ),
+                              onChanged: (value) => _fetchInvoiceDetails(),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Please enter a Lightning Invoice';
+                                }
+                                return null;
+                              },
+                            )
+                          else
+                            Column(
+                              children: [
+                                TextFormField(
+                                  controller: _lnurlController,
+                                  focusNode: _lnurlFocusNode,
                                   decoration: InputDecoration(
-                                    labelText: 'Lightning Invoice',
+                                    labelText:
+                                        'LN Address (e.g. someone@domain.com)',
                                     labelStyle:
                                         TextStyle(color: AppColors.primaryText),
                                     filled: true,
@@ -301,97 +412,106 @@ class _SendScreenState extends State<SendScreen> {
                                           BorderSide(color: AppColors.border),
                                     ),
                                   ),
-                                  onChanged: (value) => _fetchInvoiceDetails(),
                                   validator: (value) {
                                     if (value == null || value.isEmpty) {
-                                      return 'Please enter a Lightning Invoice';
+                                      return 'Please enter a Lightning Address';
                                     }
                                     return null;
                                   },
-                                )
-                              : Column(
+                                ),
+                                const SizedBox(height: 10),
+                                Row(
                                   children: [
-                                    TextFormField(
-                                      controller: _lnurlController,
-                                      focusNode: _lnurlFocusNode,
-                                      decoration: InputDecoration(
-                                        labelText:
-                                            'LN Address (e.g. someone@domain.com)',
-                                        labelStyle: TextStyle(
-                                            color: AppColors.primaryText),
-                                        filled: true,
-                                        fillColor: AppColors.buttonBackground,
-                                        border: const OutlineInputBorder(),
-                                        enabledBorder: OutlineInputBorder(
-                                          borderSide: BorderSide(
-                                              color: AppColors.border),
+                                    Expanded(
+                                      child: TextFormField(
+                                        controller: _amountController,
+                                        keyboardType: TextInputType.number,
+                                        decoration: InputDecoration(
+                                          labelText: 'Amount',
+                                          labelStyle: TextStyle(
+                                              color: AppColors.primaryText),
+                                          filled: true,
+                                          fillColor: AppColors.buttonBackground,
+                                          border: const OutlineInputBorder(),
+                                          enabledBorder: OutlineInputBorder(
+                                            borderSide: BorderSide(
+                                                color: AppColors.border),
+                                          ),
+                                          focusedBorder: OutlineInputBorder(
+                                            borderSide: BorderSide(
+                                                color: AppColors.border),
+                                          ),
                                         ),
-                                        focusedBorder: OutlineInputBorder(
-                                          borderSide: BorderSide(
-                                              color: AppColors.border),
-                                        ),
+                                        onChanged: _onAmountChanged,
+                                        validator: (value) {
+                                          if (value == null || value.isEmpty) {
+                                            return 'Please enter an amount';
+                                          }
+                                          if (double.tryParse(value) == null ||
+                                              double.parse(value) <= 0) {
+                                            return 'Enter a valid amount';
+                                          }
+                                          return null;
+                                        },
                                       ),
-                                      validator: (value) {
-                                        if (value == null || value.isEmpty) {
-                                          return 'Please enter a Lightning Address';
-                                        }
-                                        return null;
-                                      },
                                     ),
-                                    const SizedBox(height: 10),
-                                    TextFormField(
-                                      controller: _amountController,
-                                      keyboardType: TextInputType.number,
-                                      decoration: InputDecoration(
-                                        labelText: 'Amount (sats)',
-                                        labelStyle: TextStyle(
-                                            color: AppColors.primaryText),
-                                        filled: true,
-                                        fillColor: AppColors.buttonBackground,
-                                        border: const OutlineInputBorder(),
-                                        enabledBorder: OutlineInputBorder(
-                                          borderSide: BorderSide(
-                                              color: AppColors.border),
+                                    const SizedBox(width: 10),
+                                    DropdownButton<CurrencyUnit>(
+                                      value: _selectedUnit,
+                                      items: const [
+                                        DropdownMenuItem(
+                                          value: CurrencyUnit.sats,
+                                          child: Text("SATS"),
                                         ),
-                                        focusedBorder: OutlineInputBorder(
-                                          borderSide: BorderSide(
-                                              color: AppColors.border),
+                                        DropdownMenuItem(
+                                          value: CurrencyUnit.usd,
+                                          child: Text("USD"),
                                         ),
-                                      ),
-                                      validator: (value) {
-                                        if (value == null || value.isEmpty) {
-                                          return 'Please enter an amount';
-                                        }
-                                        if (int.tryParse(value) == null ||
-                                            int.parse(value) <= 0) {
-                                          return 'Enter a valid amount';
-                                        }
-                                        return null;
+                                      ],
+                                      onChanged: (newValue) {
+                                        setState(() {
+                                          _selectedUnit = newValue!;
+                                        });
+                                        _onAmountChanged(
+                                            _amountController.text);
                                       },
-                                    ),
-                                    const SizedBox(height: 10),
-                                    TextFormField(
-                                      controller: _memoController,
-                                      decoration: InputDecoration(
-                                        labelText: 'Memo (optional)',
-                                        hintText: 'Sent from Grape!',
-                                        labelStyle: TextStyle(
-                                            color: AppColors.primaryText),
-                                        filled: true,
-                                        fillColor: AppColors.buttonBackground,
-                                        border: const OutlineInputBorder(),
-                                        enabledBorder: OutlineInputBorder(
-                                          borderSide: BorderSide(
-                                              color: AppColors.border),
-                                        ),
-                                        focusedBorder: OutlineInputBorder(
-                                          borderSide: BorderSide(
-                                              color: AppColors.border),
-                                        ),
-                                      ),
                                     ),
                                   ],
                                 ),
+                                const SizedBox(height: 10),
+                                if (_convertedAmount != null)
+                                  Text(
+                                    _selectedUnit == CurrencyUnit.sats
+                                        ? "≈ \$${_convertedAmount!.toStringAsFixed(2)}"
+                                        : "≈ ${_convertedAmount!.toStringAsFixed(0)} SATS",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: AppColors.secondaryText,
+                                    ),
+                                  ),
+                                const SizedBox(height: 10),
+                                TextFormField(
+                                  controller: _memoController,
+                                  decoration: InputDecoration(
+                                    labelText: 'Memo (optional)',
+                                    hintText: 'Sent from Grape!',
+                                    labelStyle:
+                                        TextStyle(color: AppColors.primaryText),
+                                    filled: true,
+                                    fillColor: AppColors.buttonBackground,
+                                    border: const OutlineInputBorder(),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderSide:
+                                          BorderSide(color: AppColors.border),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderSide:
+                                          BorderSide(color: AppColors.border),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           const SizedBox(height: 20),
                           SizedBox(
                             width: double.infinity,

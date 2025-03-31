@@ -6,6 +6,8 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../wallet_provider.dart';
 import '../utils/colors.dart';
 
+enum CurrencyUnit { sats, usd }
+
 class InvoicePage extends StatefulWidget {
   const InvoicePage({super.key});
 
@@ -20,6 +22,9 @@ class _InvoicePageState extends State<InvoicePage> {
   String _qrData = '';
   Timer? _debounce;
   bool _isUpdating = false;
+
+  CurrencyUnit _selectedUnit = CurrencyUnit.sats;
+  double? _convertedAmount;
 
   @override
   void initState() {
@@ -36,6 +41,39 @@ class _InvoicePageState extends State<InvoicePage> {
     _debounce = Timer(const Duration(milliseconds: 500), () {
       _updateQr();
     });
+    _onAmountChanged(_amountController.text);
+  }
+
+  Future<void> _onAmountChanged(String value) async {
+    double? amount = double.tryParse(value);
+    if (amount == null) {
+      setState(() {
+        _convertedAmount = null;
+      });
+      return;
+    }
+    final walletProvider = Provider.of<WalletProvider>(context, listen: false);
+    if (_selectedUnit == CurrencyUnit.sats) {
+      int sats = amount.toInt();
+      double? fiat =
+          await walletProvider.convertSatoshisToCurrency(sats, 'usd');
+      setState(() {
+        _convertedAmount = fiat;
+      });
+    } else {
+      double? btcPrice =
+          await walletProvider.convertSatoshisToCurrency(100000000, 'usd');
+      if (btcPrice != null && btcPrice > 0) {
+        int sats = (amount * 100000000 / btcPrice).round();
+        setState(() {
+          _convertedAmount = sats.toDouble();
+        });
+      } else {
+        setState(() {
+          _convertedAmount = null;
+        });
+      }
+    }
   }
 
   Future<void> _updateQr() async {
@@ -54,14 +92,23 @@ class _InvoicePageState extends State<InvoicePage> {
     });
 
     final amountText = _amountController.text.trim();
-    int? amount = amountText.isEmpty ? 0 : int.tryParse(amountText);
-    if (amount == null || amount < 0) {
-      amount = 0;
+    int amountSats = 0;
+    if (_selectedUnit == CurrencyUnit.sats) {
+      amountSats = int.tryParse(amountText) ?? 0;
+    } else {
+      double? usdAmount = double.tryParse(amountText);
+      double? btcPrice =
+          await walletProvider.convertSatoshisToCurrency(100000000, 'usd');
+      if (usdAmount == null || btcPrice == null || btcPrice <= 0) {
+        amountSats = 0;
+      } else {
+        amountSats = (usdAmount * 100000000 / btcPrice).round();
+      }
     }
 
     final memo = _memoController.text.trim();
 
-    await walletProvider.createInvoice(amount, memo);
+    await walletProvider.createInvoice(amountSats, memo);
 
     if (walletProvider.invoice != null) {
       setState(() {
@@ -161,32 +208,74 @@ class _InvoicePageState extends State<InvoicePage> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
-            TextField(
-              controller: _amountController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: 'Amount (Optional)',
-                labelStyle: TextStyle(color: AppColors.dialogText),
-                filled: true,
-                fillColor: AppColors.buttonBackground,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8.0),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _amountController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'Amount (Optional)',
+                      labelStyle: TextStyle(color: AppColors.dialogText),
+                      filled: true,
+                      fillColor: AppColors.buttonBackground,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8.0),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8.0),
+                        borderSide: BorderSide(color: AppColors.border),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8.0),
+                        borderSide: BorderSide(color: AppColors.border),
+                      ),
+                      prefixIcon: Icon(
+                        Icons.currency_bitcoin,
+                        color: AppColors.dialogText,
+                      ),
+                    ),
+                    style:
+                        TextStyle(color: AppColors.dialogText, fontSize: 16.0),
+                  ),
                 ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8.0),
-                  borderSide: BorderSide(color: AppColors.border),
+                const SizedBox(width: 10),
+                DropdownButton<CurrencyUnit>(
+                  value: _selectedUnit,
+                  items: const [
+                    DropdownMenuItem(
+                      value: CurrencyUnit.sats,
+                      child: Text("SATS"),
+                    ),
+                    DropdownMenuItem(
+                      value: CurrencyUnit.usd,
+                      child: Text("USD"),
+                    ),
+                  ],
+                  onChanged: (newValue) {
+                    setState(() {
+                      _selectedUnit = newValue!;
+                    });
+                    _onAmountChanged(_amountController.text);
+                  },
                 ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8.0),
-                  borderSide: BorderSide(color: AppColors.border),
-                ),
-                prefixIcon: Icon(
-                  Icons.currency_bitcoin,
-                  color: AppColors.dialogText,
+              ],
+            ),
+            if (_convertedAmount != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Center(
+                  child: Text(
+                    _selectedUnit == CurrencyUnit.sats
+                        ? "≈ \$${_convertedAmount!.toStringAsFixed(2)}"
+                        : "≈ ${_convertedAmount!.toStringAsFixed(0)} SATS",
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: AppColors.secondaryText,
+                    ),
+                  ),
                 ),
               ),
-              style: TextStyle(color: AppColors.dialogText, fontSize: 16.0),
-            ),
             const SizedBox(height: 16),
             TextField(
               controller: _memoController,
