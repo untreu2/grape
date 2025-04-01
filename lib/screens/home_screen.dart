@@ -375,17 +375,15 @@ class _HomeScreenState extends State<HomeScreen> {
                           },
                           icon: const Icon(
                             Icons.arrow_downward,
-                            color: AppColors.primaryText,
+                            color: AppColors.buttonBackground,
                           ),
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 18.0),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30),
-                              side: const BorderSide(
-                                  color: AppColors.primaryText),
                             ),
-                            backgroundColor: AppColors.buttonBackground,
-                            foregroundColor: AppColors.buttonText,
+                            backgroundColor: AppColors.buttonText,
+                            foregroundColor: AppColors.buttonBackground,
                           ),
                           label: const Text(
                             'Receive',
