@@ -250,8 +250,10 @@ class _SendScreenState extends State<SendScreen> {
     final isInvoicePaymentDisabled = _paymentMethod == 'invoice' &&
         (_invoiceController.text.trim().isNotEmpty && _fee == null);
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         foregroundColor: AppColors.buttonText,
       ),
       backgroundColor: AppColors.background,
