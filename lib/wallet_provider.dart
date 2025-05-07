@@ -681,6 +681,77 @@ class WalletProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> sendOnChainPayment({
+    required String destinationAddress,
+    required int amountSats,
+    String memo = "",
+  }) async {
+    if (_authToken == null) {
+      _status = "Not authenticated.";
+      notifyListeners();
+      return;
+    }
+
+    final walletId = await getWalletId();
+    if (walletId == null) {
+      _status = "BTC wallet not found.";
+      notifyListeners();
+      return;
+    }
+
+    final query = """
+    mutation OnChainPaymentSend(\$input: OnChainPaymentSendInput!) {
+      onChainPaymentSend(input: \$input) {
+        status
+        errors {
+          message
+          path
+          code
+        }
+      }
+    }
+    """;
+
+    final variables = {
+      "input": {
+        "address": destinationAddress,
+        "amount": amountSats,
+        "walletId": walletId,
+        if (memo.isNotEmpty) "memo": memo,
+      }
+    };
+
+    try {
+      final response = await http.post(
+        Uri.parse(_apiUrl),
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-KEY": _authToken!,
+        },
+        body: jsonEncode({
+          "query": query,
+          "variables": variables,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final result = data["data"]["onChainPaymentSend"];
+        if (result["errors"] != null && result["errors"].length > 0) {
+          _status = "Error: ${result["errors"][0]["message"]}";
+        } else {
+          _status = result["status"] ?? "Unknown status.";
+        }
+      } else {
+        _status = "Failed to send payment. Status: ${response.statusCode}";
+      }
+    } catch (e) {
+      _status = "Error: $e";
+    }
+
+    notifyListeners();
+  }
+
   Future<void> createOnChainAddress() async {
     if (_authToken == null) {
       _onChainAddress = "Not authenticated.";
