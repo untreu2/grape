@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../wallet_provider.dart';
 import '../utils/colors.dart';
 import '../pop/tx.dart';
+import '../pop/drawer.dart';
 import 'send_screen.dart';
 import 'history_screen.dart';
 import 'scan_screen.dart';
@@ -54,6 +55,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      drawer: const AppDrawer(),
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: AppColors.primaryText),
+        centerTitle: false,
+        title: const Text(
+          'Grape',
+          style: TextStyle(
+            color: AppColors.primaryText,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
@@ -74,7 +90,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 TextSpan(
                                   text: displayBalance,
                                   style: const TextStyle(
-                                    fontSize: 40,
+                                    fontSize: 60,
                                     fontWeight: FontWeight.bold,
                                     color: AppColors.primaryText,
                                   ),
