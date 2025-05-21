@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../wallet_provider.dart';
@@ -17,7 +18,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = true;
-  bool _isBTC = false;
   String? _balance;
   double? _fiatRate;
   List<Map<String, dynamic>> _transactions = [];
@@ -45,10 +45,8 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final double balanceValue = double.tryParse(_balance ?? '0') ?? 0;
-    final displayBalance = _isBTC
-        ? (balanceValue / 100000000).toStringAsFixed(8)
-        : balanceValue.toStringAsFixed(0);
-    final balanceUnit = _isBTC ? 'BTC' : 'SATS';
+    final displayBalance = balanceValue.toStringAsFixed(0);
+    const balanceUnit = 'SATS';
     final fiatDisplay = (_fiatRate != null && _balance != null)
         ? '\$${((balanceValue / 100000000) * _fiatRate!).toStringAsFixed(2)}'
         : '--';
@@ -79,45 +77,42 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    GestureDetector(
-                      onTap: () => setState(() => _isBTC = !_isBTC),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text.rich(
-                            TextSpan(
-                              children: [
-                                TextSpan(
-                                  text: displayBalance,
-                                  style: const TextStyle(
-                                    fontSize: 60,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.primaryText,
-                                  ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(
+                                text: displayBalance,
+                                style: const TextStyle(
+                                  fontSize: 50,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primaryText,
                                 ),
-                                const WidgetSpan(child: SizedBox(width: 6)),
-                                TextSpan(
-                                  text: balanceUnit,
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.primaryText,
-                                  ),
+                              ),
+                              const WidgetSpan(child: SizedBox(width: 6)),
+                              const TextSpan(
+                                text: balanceUnit,
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primaryText,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            fiatDisplay,
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.currencypositive,
-                            ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          fiatDisplay,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.currencypositive,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 24),
                     const Text(
