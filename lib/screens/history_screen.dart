@@ -122,7 +122,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _transactions.isEmpty
-              ? const Center(child: Text("No more transactions"))
+              ? const Center(
+                  child: Text(
+                    "No transactions found.",
+                    style: TextStyle(color: AppColors.secondaryText),
+                  ),
+                )
               : ListView.builder(
                   controller: _scrollController,
                   itemCount: _transactions.length + 1,
@@ -142,10 +147,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         return const SizedBox.shrink();
                       }
                     }
+
                     final tx = _transactions[index];
-                    return TransferCard(
-                      tx: tx,
-                      enableInvoiceCopy: true,
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16.0, vertical: 4.0),
+                      child: TransferCard(
+                        tx: tx,
+                        enableInvoiceCopy: true,
+                      ),
                     );
                   },
                 ),

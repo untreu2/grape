@@ -53,7 +53,7 @@ class _TransferCardState extends State<TransferCard> {
           _fiatValue = newValue;
         });
       }
-    } catch (e) {
+    } catch (_) {
       if (_fiatValue != null) {
         setState(() {
           _fiatValue = null;
@@ -79,78 +79,79 @@ class _TransferCardState extends State<TransferCard> {
     } else {
       titleText = "Sent $amount ${amount == 1 ? 'satoshi' : 'satoshis'}";
     }
-    Color tileColor = AppColors.buttonText;
 
     String truncatedInvoice =
         invoice.length > 10 ? '${invoice.substring(0, 10)}...' : invoice;
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      color: tileColor.withOpacity(0.1),
-      shape: RoundedRectangleBorder(
-        side: BorderSide(color: AppColors.border),
-        borderRadius: BorderRadius.circular(8.0),
-      ),
-      child: ListTile(
-        title: Text(
-          titleText,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: AppColors.primaryText,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            GestureDetector(
-              onTap: widget.enableInvoiceCopy
-                  ? () {
-                      Clipboard.setData(ClipboardData(text: invoice));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Invoice copied.")),
-                      );
-                    }
-                  : null,
-              child: Text(
-                "Payment Request: $truncatedInvoice",
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.secondaryText,
-                  decoration: widget.enableInvoiceCopy
-                      ? TextDecoration.underline
-                      : TextDecoration.none,
-                ),
-              ),
+    return Column(
+      children: [
+        ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 0),
+          title: Text(
+            titleText,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primaryText,
             ),
-            if (memo != null && memo.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 4.0),
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              GestureDetector(
+                onTap: widget.enableInvoiceCopy
+                    ? () {
+                        Clipboard.setData(ClipboardData(text: invoice));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("Invoice copied.")),
+                        );
+                      }
+                    : null,
                 child: Text(
-                  "Memo: $memo",
-                  style: const TextStyle(
+                  "Payment Request: $truncatedInvoice",
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
                     fontSize: 12,
-                    color: AppColors.primaryText,
+                    color: AppColors.secondaryText,
+                    decoration: widget.enableInvoiceCopy
+                        ? TextDecoration.underline
+                        : TextDecoration.none,
                   ),
                 ),
               ),
-          ],
-        ),
-        trailing: Text(
-          _fiatValue != null
-              ? "≈$fiatSymbol${_fiatValue!.toStringAsFixed(2)}"
-              : "N/A",
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: settlementAmount >= 0
-                ? AppColors.currencypositive
-                : AppColors.currencynegative,
+              if (memo != null && memo.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4.0),
+                  child: Text(
+                    "Memo: $memo",
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.primaryText,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          trailing: Text(
+            _fiatValue != null
+                ? "≈$fiatSymbol${_fiatValue!.toStringAsFixed(2)}"
+                : "N/A",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: settlementAmount >= 0
+                  ? AppColors.currencypositive
+                  : AppColors.currencynegative,
+            ),
           ),
         ),
-      ),
+        const Divider(
+          height: 1,
+          thickness: 0.5,
+          color: AppColors.border,
+        ),
+      ],
     );
   }
 }
