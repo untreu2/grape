@@ -6,6 +6,7 @@ import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/history_screen.dart';
 import 'screens/receive_screen.dart';
+import 'screens/settings_screen.dart';
 import 'utils/colors.dart';
 
 void main() {
@@ -109,6 +110,7 @@ class Grape extends StatelessWidget {
         '/home': (context) => const HomeScreen(),
         '/history': (context) => const HistoryScreen(),
         '/invoice': (context) => const InvoicePage(),
+        '/settings': (context) => const SettingsScreen(),
       },
     );
   }

@@ -35,4 +35,6 @@ class AppColors {
   static const Color qrIconColor = primaryText;
 
   static const Color payingloading = Color(0xFFFFF9C4);
+  
+  static const Color cardBackground = Color(0xFF1A1A1A);
 }

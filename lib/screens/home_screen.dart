@@ -25,6 +25,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isBTC = false;
   static const int satoshiPerBTC = 100000000;
   double? _fiatBalance;
+  String _selectedCurrency = 'USD';
   List<Map<String, dynamic>> _lastTransactions = [];
   bool _isTransactionsLoading = true;
 
@@ -56,10 +57,17 @@ class _HomeScreenState extends State<HomeScreen> {
     _updateFiatBalance();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _loadPreferences().then((_) => _updateFiatBalance());
+  }
+
   Future<void> _loadPreferences() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
       _isBTC = prefs.getBool('isBTC') ?? false;
+      _selectedCurrency = prefs.getString('selected_currency') ?? 'USD';
     });
   }
 
@@ -117,7 +125,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final walletProvider = Provider.of<WalletProvider>(context, listen: false);
     double? fiat = await walletProvider.convertSatoshisToCurrency(
       100000000,
-      'usd',
+      _selectedCurrency.toLowerCase(),
     );
     if (fiat != null) {
       final String? balanceStr = walletProvider.balance;
@@ -158,14 +166,38 @@ class _HomeScreenState extends State<HomeScreen> {
     final Color fiatBalanceColor = _fiatBalance != null && _fiatBalance! >= 0
         ? AppColors.currencypositive
         : AppColors.currencynegative;
+    
+    String currencySymbol = _getCurrencySymbol(_selectedCurrency);
+    
     return Text(
-      '\$${_fiatBalance?.toStringAsFixed(2) ?? "--"}',
+      '$currencySymbol${_fiatBalance?.toStringAsFixed(2) ?? "--"}',
       style: TextStyle(
         fontSize: 24,
         color: fiatBalanceColor,
         fontWeight: FontWeight.bold,
       ),
     );
+  }
+
+  String _getCurrencySymbol(String currency) {
+    switch (currency.toUpperCase()) {
+      case 'USD':
+        return '\$';
+      case 'EUR':
+        return '€';
+      case 'GBP':
+        return '£';
+      case 'TRY':
+        return '₺';
+      case 'JPY':
+        return '¥';
+      case 'CAD':
+        return 'C\$';
+      case 'AUD':
+        return 'A\$';
+      default:
+        return '\$';
+    }
   }
 
   @override

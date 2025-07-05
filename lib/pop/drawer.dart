@@ -1,16 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../utils/colors.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({Key? key}) : super(key: key);
-
-  static final FlutterSecureStorage _storage = FlutterSecureStorage();
-
-  Future<void> _logout(BuildContext context) async {
-    await _storage.deleteAll();
-    Navigator.pushReplacementNamed(context, '/login');
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,13 +37,13 @@ class AppDrawer extends StatelessWidget {
             },
           ),
           ListTile(
-            leading: Icon(Icons.exit_to_app, color: AppColors.secondaryText),
+            leading: Icon(Icons.settings, color: AppColors.secondaryText),
             title: Text(
-              'Logout',
+              'Settings',
               style: TextStyle(color: AppColors.secondaryText),
             ),
-            onTap: () async {
-              await _logout(context);
+            onTap: () {
+              Navigator.pushNamed(context, '/settings');
             },
           ),
           const SizedBox(height: 16),

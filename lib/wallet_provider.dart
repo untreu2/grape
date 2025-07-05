@@ -804,6 +804,8 @@ class WalletProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+
+
   @override
   void dispose() {
     stopPaymentCheck();

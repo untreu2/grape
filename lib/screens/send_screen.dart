@@ -19,10 +19,9 @@ class SendScreen extends StatefulWidget {
 class _SendScreenState extends State<SendScreen> {
   final _formKey = GlobalKey<FormState>();
   final _invoiceController = TextEditingController();
-  final _lnurlController = TextEditingController();
   final _amountController = TextEditingController();
   final _memoController = TextEditingController();
-  String _paymentMethod = 'invoice';
+  String _paymentMethod = 'unknown';
   int? _requestedAmount;
   String? _memo;
   double? _fee;
@@ -34,32 +33,62 @@ class _SendScreenState extends State<SendScreen> {
   CurrencyUnit _selectedUnit = CurrencyUnit.sats;
 
   final FocusNode _invoiceFocusNode = FocusNode();
-  final FocusNode _lnurlFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
     if (widget.preFilledData != null && widget.preFilledData!.isNotEmpty) {
       final data = widget.preFilledData!.trim();
-      if (data.toLowerCase().startsWith('lnbc') && !data.contains('@')) {
+      _invoiceController.text = data;
+      _detectAndSetPaymentMethod(data);
+    }
+  }
+
+  void _detectAndSetPaymentMethod(String data) {
+    if (data.isEmpty) {
+      setState(() {
+        _paymentMethod = 'unknown';
+        _requestedAmount = null;
+        _memo = null;
+        _fee = null;
+        _fiatValue = null;
+        _convertedAmount = null;
+      });
+      return;
+    }
+
+    if (data.toLowerCase().startsWith('lnbc') && !data.contains('@')) {
+      setState(() {
         _paymentMethod = 'invoice';
-        _invoiceController.text = data;
-        _fetchInvoiceDetails();
-      } else {
+      });
+      _fetchInvoiceDetails();
+    } else if (data.contains('@') || data.toLowerCase().startsWith('lnurl')) {
+      setState(() {
         _paymentMethod = 'lnurl';
-        _lnurlController.text = data;
-      }
+        _requestedAmount = null;
+        _memo = null;
+        _fee = null;
+        _fiatValue = null;
+        _convertedAmount = null;
+      });
+    } else {
+      setState(() {
+        _paymentMethod = 'unknown';
+        _requestedAmount = null;
+        _memo = null;
+        _fee = null;
+        _fiatValue = null;
+        _convertedAmount = null;
+      });
     }
   }
 
   @override
   void dispose() {
     _invoiceController.dispose();
-    _lnurlController.dispose();
     _amountController.dispose();
     _memoController.dispose();
     _invoiceFocusNode.dispose();
-    _lnurlFocusNode.dispose();
     super.dispose();
   }
 
@@ -179,8 +208,8 @@ class _SendScreenState extends State<SendScreen> {
       if (_paymentMethod == 'invoice') {
         final paymentRequest = _invoiceController.text.trim();
         await walletProvider.payInvoice(paymentRequest);
-      } else {
-        final lnurl = _lnurlController.text.trim();
+      } else if (_paymentMethod == 'lnurl') {
+        final lnurl = _invoiceController.text.trim();
         int amount;
         if (_selectedUnit == CurrencyUnit.sats) {
           amount = int.tryParse(_amountController.text.trim()) ?? 0;
@@ -214,6 +243,17 @@ class _SendScreenState extends State<SendScreen> {
           memo,
           _confirmFee,
         );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Please enter a valid Lightning Invoice or Address."),
+            backgroundColor: AppColors.sendError,
+          ),
+        );
+        setState(() {
+          _isLoading = false;
+        });
+        return;
       }
       if (walletProvider.status == "SUCCESS") {
         setState(() {
@@ -315,107 +355,52 @@ class _SendScreenState extends State<SendScreen> {
                       key: _formKey,
                       child: Column(
                         children: [
-                          ToggleButtons(
-                            isSelected: [
-                              _paymentMethod == 'invoice',
-                              _paymentMethod == 'lnurl',
-                            ],
-                            onPressed: (index) {
-                              setState(() {
-                                _paymentMethod =
-                                    index == 0 ? 'invoice' : 'lnurl';
-                                _invoiceController.clear();
-                                _lnurlController.clear();
-                                _amountController.clear();
-                                _memoController.clear();
-                                _requestedAmount = null;
-                                _memo = null;
-                                _fee = null;
-                                _fiatValue = null;
-                                _convertedAmount = null;
-                              });
+                          TextFormField(
+                            controller: _invoiceController,
+                            focusNode: _invoiceFocusNode,
+                            decoration: InputDecoration(
+                              labelText: _paymentMethod == 'invoice'
+                                  ? 'Lightning Invoice'
+                                  : _paymentMethod == 'lnurl'
+                                      ? 'Lightning Address'
+                                      : 'Lightning Invoice or Address',
+                              hintText: _paymentMethod == 'unknown'
+                                  ? 'Enter invoice (lnbc...) or address (user@domain.com)'
+                                  : null,
+                              labelStyle:
+                                  TextStyle(color: AppColors.primaryText),
+                              filled: true,
+                              fillColor: AppColors.buttonBackground,
+                              border: const OutlineInputBorder(),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide:
+                                    BorderSide(color: AppColors.border),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderSide:
+                                    BorderSide(color: AppColors.border),
+                              ),
+                            ),
+                            onChanged: (value) {
+                              _detectAndSetPaymentMethod(value.trim());
+                              if (_paymentMethod == 'invoice') {
+                                _fetchInvoiceDetails();
+                              }
                             },
-                            borderRadius: BorderRadius.circular(30),
-                            borderWidth: 2,
-                            selectedBorderColor: AppColors.border,
-                            borderColor: AppColors.border,
-                            selectedColor: AppColors.buttonText,
-                            color: AppColors.primaryText,
-                            fillColor: AppColors.buttonBackground,
-                            textStyle: Theme.of(context).textTheme.bodyLarge,
-                            children: const [
-                              Padding(
-                                padding: EdgeInsets.symmetric(
-                                    horizontal: 32.0, vertical: 12.0),
-                                child: Text('Invoice'),
-                              ),
-                              Padding(
-                                padding: EdgeInsets.symmetric(
-                                    horizontal: 32.0, vertical: 12.0),
-                                child: Text('Address'),
-                              ),
-                            ],
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter a Lightning Invoice or Address';
+                              }
+                              if (_paymentMethod == 'unknown') {
+                                return 'Please enter a valid Lightning Invoice or Address';
+                              }
+                              return null;
+                            },
                           ),
                           const SizedBox(height: 20),
-                          if (_paymentMethod == 'invoice')
-                            TextFormField(
-                              controller: _invoiceController,
-                              focusNode: _invoiceFocusNode,
-                              decoration: InputDecoration(
-                                labelText: 'Lightning Invoice',
-                                labelStyle:
-                                    TextStyle(color: AppColors.primaryText),
-                                filled: true,
-                                fillColor: AppColors.buttonBackground,
-                                border: const OutlineInputBorder(),
-                                enabledBorder: OutlineInputBorder(
-                                  borderSide:
-                                      BorderSide(color: AppColors.border),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderSide:
-                                      BorderSide(color: AppColors.border),
-                                ),
-                              ),
-                              onChanged: (value) => _fetchInvoiceDetails(),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Please enter a Lightning Invoice';
-                                }
-                                return null;
-                              },
-                            )
-                          else
+                          if (_paymentMethod == 'lnurl')
                             Column(
                               children: [
-                                TextFormField(
-                                  controller: _lnurlController,
-                                  focusNode: _lnurlFocusNode,
-                                  decoration: InputDecoration(
-                                    labelText:
-                                        'LN Address (e.g. someone@domain.com)',
-                                    labelStyle:
-                                        TextStyle(color: AppColors.primaryText),
-                                    filled: true,
-                                    fillColor: AppColors.buttonBackground,
-                                    border: const OutlineInputBorder(),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderSide:
-                                          BorderSide(color: AppColors.border),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderSide:
-                                          BorderSide(color: AppColors.border),
-                                    ),
-                                  ),
-                                  validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return 'Please enter a Lightning Address';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                                const SizedBox(height: 10),
                                 Row(
                                   children: [
                                     Expanded(
