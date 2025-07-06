@@ -305,6 +305,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   TransferCard(
                                     tx: _lastTransactions.first,
                                     enableInvoiceCopy: false,
+                                    selectedCurrency: _selectedCurrency,
                                   ),
                                   Align(
                                     alignment: Alignment.center,

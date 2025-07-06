@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/lnparser.dart';
 import '../utils/colors.dart';
 import '../wallet_provider.dart';
@@ -8,11 +9,13 @@ import '../wallet_provider.dart';
 class TransferCard extends StatefulWidget {
   final Map<String, dynamic> tx;
   final bool enableInvoiceCopy;
+  final String? selectedCurrency;
 
   const TransferCard({
     super.key,
     required this.tx,
     this.enableInvoiceCopy = false,
+    this.selectedCurrency,
   });
 
   @override
@@ -21,17 +24,35 @@ class TransferCard extends StatefulWidget {
 
 class _TransferCardState extends State<TransferCard> {
   double? _fiatValue;
+  String _selectedCurrency = 'USD';
 
   @override
   void initState() {
     super.initState();
-    _fetchFiatValue();
+    _loadPreferences();
   }
 
   @override
   void didUpdateWidget(covariant TransferCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.tx != oldWidget.tx) {
+    if (widget.tx != oldWidget.tx || widget.selectedCurrency != oldWidget.selectedCurrency) {
+      _loadPreferences();
+    }
+  }
+
+  Future<void> _loadPreferences() async {
+    String newCurrency;
+    if (widget.selectedCurrency != null) {
+      newCurrency = widget.selectedCurrency!;
+    } else {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      newCurrency = prefs.getString('selected_currency') ?? 'USD';
+    }
+    
+    if (newCurrency != _selectedCurrency) {
+      setState(() {
+        _selectedCurrency = newCurrency;
+      });
       _fetchFiatValue();
     }
   }
@@ -47,7 +68,7 @@ class _TransferCardState extends State<TransferCard> {
 
     try {
       double? newValue =
-          await walletProvider.convertSatoshisToCurrency(amount, 'usd');
+          await walletProvider.convertSatoshisToCurrency(amount, _selectedCurrency.toLowerCase());
       if (newValue != null && newValue != _fiatValue) {
         setState(() {
           _fiatValue = newValue;
@@ -62,6 +83,27 @@ class _TransferCardState extends State<TransferCard> {
     }
   }
 
+  String _getCurrencySymbol(String currency) {
+    switch (currency.toUpperCase()) {
+      case 'USD':
+        return '\$';
+      case 'EUR':
+        return '€';
+      case 'GBP':
+        return '£';
+      case 'TRY':
+        return '₺';
+      case 'JPY':
+        return '¥';
+      case 'CAD':
+        return 'C\$';
+      case 'AUD':
+        return 'A\$';
+      default:
+        return '\$';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final String invoice = widget.tx["invoice"] as String;
@@ -71,7 +113,7 @@ class _TransferCardState extends State<TransferCard> {
     final int? parsedAmount = LightningInvoiceParser.getSatoshiAmount(invoice);
     final String? memo = LightningInvoiceParser.getMemo(invoice);
     final int amount = parsedAmount ?? settlementAmount.abs();
-    final String fiatSymbol = '\$';
+    final String fiatSymbol = _getCurrencySymbol(_selectedCurrency);
 
     String titleText;
     if (settlementAmount >= 0) {
