@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/lnparser.dart';
 import '../utils/colors.dart';
 import '../wallet_provider.dart';
+import '../screens/transaction_detail_screen.dart';
 
 class TransferCard extends StatefulWidget {
   final Map<String, dynamic> tx;
@@ -49,10 +50,12 @@ class _TransferCardState extends State<TransferCard> {
       newCurrency = prefs.getString('selected_currency') ?? 'USD';
     }
     
-    if (newCurrency != _selectedCurrency) {
-      setState(() {
-        _selectedCurrency = newCurrency;
-      });
+    bool currencyChanged = newCurrency != _selectedCurrency;
+    setState(() {
+      _selectedCurrency = newCurrency;
+    });
+    
+    if (currencyChanged || _fiatValue == null) {
       _fetchFiatValue();
     }
   }
@@ -134,6 +137,34 @@ class _TransferCardState extends State<TransferCard> {
         borderRadius: BorderRadius.circular(8.0),
       ),
       child: ListTile(
+        onTap: () {
+          final String? transactionId = widget.tx["id"];
+          print("TransferCard tapped. Transaction data: ${widget.tx}");
+          print("Transaction ID: $transactionId");
+
+          if (transactionId != null && transactionId.isNotEmpty) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => TransactionDetailScreen(
+                  transactionId: transactionId,
+                  initialTxData: widget.tx,
+                ),
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text("Transaction ID not available. Data: ${widget.tx}"),
+              ),
+            );
+          }
+        },
+        leading: Icon(
+          settlementAmount >= 0 ? Icons.arrow_downward : Icons.arrow_upward,
+          color: settlementAmount >= 0 ? AppColors.currencypositive : AppColors.currencynegative,
+          size: 24,
+        ),
         title: Text(
           titleText,
           style: const TextStyle(

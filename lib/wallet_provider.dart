@@ -462,6 +462,7 @@ class WalletProvider extends ChangeNotifier {
           transactions(first: \$first) {
             edges {
               node {
+                id
                 initiationVia {
                   ... on InitiationViaLn {
                     paymentRequest
@@ -495,6 +496,7 @@ class WalletProvider extends ChangeNotifier {
           if (initiationVia != null &&
               initiationVia["paymentRequest"] != null) {
             txList.add({
+              "id": node["id"],
               "invoice": initiationVia["paymentRequest"],
               "settlementAmount": node["settlementAmount"],
               "status": node["status"],
@@ -805,6 +807,121 @@ class WalletProvider extends ChangeNotifier {
   }
 
 
+
+  Future<Map<String, dynamic>?> getTransactionDetails(String transactionId) async {
+    if (_authToken == null) {
+      return null;
+    }
+
+    final query = """
+    query GetTransactions(\$first: Int) {
+      me {
+        defaultAccount {
+          transactions(first: \$first) {
+            edges {
+              node {
+                id
+                createdAt
+                direction
+                externalId
+                memo
+                settlementAmount
+                settlementCurrency
+                settlementDisplayAmount
+                settlementDisplayCurrency
+                settlementDisplayFee
+                settlementFee
+                status
+                initiationVia {
+                  ... on InitiationViaLn {
+                    paymentRequest
+                    paymentHash
+                  }
+                  ... on InitiationViaOnChain {
+                    address
+                  }
+                  ... on InitiationViaIntraLedger {
+                    counterPartyUsername
+                    counterPartyWalletId
+                  }
+                }
+                settlementVia {
+                  ... on SettlementViaLn {
+                    preImage
+                    paymentSecret
+                  }
+                  ... on SettlementViaOnChain {
+                    transactionHash
+                    vout
+                    arrivalInMempoolEstimatedAt
+                  }
+                  ... on SettlementViaIntraLedger {
+                    counterPartyUsername
+                    counterPartyWalletId
+                    preImage
+                  }
+                }
+                settlementPrice {
+                  base
+                  offset
+                  currencyUnit
+                  formattedAmount
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    """;
+
+    final variables = {"first": 100};
+
+    try {
+      final response = await http.post(
+        Uri.parse(_apiUrl),
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-KEY": _authToken!,
+        },
+        body: jsonEncode({"query": query, "variables": variables}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print("Transaction details response: $data");
+
+        if (data["errors"] != null) {
+          print("GraphQL errors: ${data["errors"]}");
+          return null;
+        }
+
+        final transactions = data["data"]?["me"]?["defaultAccount"]?["transactions"]?["edges"];
+        if (transactions == null) {
+          print("No transactions found");
+          return null;
+        }
+
+        for (var edge in transactions) {
+          final transaction = edge["node"];
+          if (transaction["id"] == transactionId) {
+            print("Found transaction: $transaction");
+            return transaction;
+          }
+        }
+
+        print("Transaction not found for ID: $transactionId");
+        return null;
+      } else {
+        print("Failed to fetch transaction details. Status: ${response.statusCode}");
+        print("Response body: ${response.body}");
+        return null;
+      }
+    } catch (e) {
+      print("Error fetching transaction details: $e");
+      return null;
+    }
+  }
 
   @override
   void dispose() {
